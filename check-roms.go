@@ -21,6 +21,12 @@ func errorExit(err error) {
 	}
 }
 
+func vLog(fmt string, v ...interface{}) {
+	if opts.Verbose {
+		log.Printf(fmt, v...)
+	}
+}
+
 func mapAttr(node *xmlquery.Node) map[string]string {
 	attrMap := make(map[string]string)
 	for _, attr := range node.Attr {
@@ -66,34 +72,24 @@ func findEntries(doc *xmlquery.Node, name string, sha string) []*xmlquery.Node {
 	list := matchEntriesBySha(doc, sha)
 	listLength := len(list)
 	if listLength == 0 {
-		if opts.Verbose {
-			log.Printf("MSG: No match for hash %s, checking name %s...\n", sha, name)
-		}
+		vLog("MSG: No match for hash %s, checking name %s...\n", sha, name)
 		var b strings.Builder
 		err := xml.EscapeText(&b, []byte(name))
 		errorExit(err)
 		//no SHA1 match, return any matching filename
 		list = xmlquery.Find(doc, fmt.Sprintf("/datafile/game/rom[@name='%s']", b.String()))
-		if opts.Verbose {
-			log.Printf("MSG: Found %d entries matching name %s...\n", len(list), name)
-		}
+		vLog("MSG: Found %d entries matching name %s...\n", len(list), name)
 		return list
 	}
-	if opts.Verbose {
-		log.Printf("MSG: Found %d entries matching hash %s, checking name %s...\n", listLength, sha, name)
-	}
+	vLog("MSG: Found %d entries matching hash %s, checking name %s...\n", listLength, sha, name)
 	for _, node := range list {
 		romName := findAttr(node, "name")
 		if romName == name {
-			if opts.Verbose {
-				log.Printf("MSG: Found exact match for hash %s and name %s\n", sha, name)
-			}
+			vLog("MSG: Found exact match for hash %s and name %s\n", sha, name)
 			return []*xmlquery.Node{node}
 		}
 	}
-	if opts.Verbose {
-		log.Printf("MSG: Found %d entries matching hash %s, but found no match for name %s...\n", listLength, sha, name)
-	}
+	vLog("MSG: Found %d entries matching hash %s, but found no match for name %s...\n", listLength, sha, name)
 	return list
 }
 
@@ -116,20 +112,12 @@ func updateGameMap(romNode *xmlquery.Node, gameMap map[*xmlquery.Node]NodeSet) {
 	if !ok {
 		roms = makeRomSet(gameNode)
 		gameMap[gameNode] = roms
-		if opts.Verbose {
-			log.Printf("MSG: Adding game %s with %d missing sets...\n", findAttr(gameNode, "name"), len(roms))
-		}
+		vLog("MSG: Adding game %s with %d missing sets...\n", findAttr(gameNode, "name"), len(roms))
 	}
-	if opts.Verbose {
-		romAttr := mapAttr(romNode)
-		romSha := strings.ToLower(romAttr["sha1"])
-		romName := romAttr["name"]
-		log.Printf("MSG: Removing rom %s %s from %s...\n", romSha, romName, findAttr(gameNode, "name"))
-	}
+	vLog("MSG: Removing rom %s %s from %s...\n",
+		strings.ToLower(findAttr(romNode, "sha1")), findAttr(romNode, "name"), findAttr(gameNode, "name"))
 	delete(roms, romNode)
-	if opts.Verbose {
-		log.Printf("MSG: Game %s now has %d missing roms\n", findAttr(gameNode, "name"), len(roms))
-	}
+	vLog("MSG: Game %s now has %d missing roms\n", findAttr(gameNode, "name"), len(roms))
 }
 
 func renameFile(filePath string, newName string) bool {
@@ -178,9 +166,7 @@ func checkRom(doc *xmlquery.Node,
 	gameMap map[*xmlquery.Node]NodeSet,
 	print bool, rename bool) {
 	fileName := filepath.Base(filePath)
-	if opts.Verbose {
-		log.Printf("MSG: Checking %s %s...\n", fileSha, fileName)
-	}
+	vLog("MSG: Checking %s %s...\n", fileSha, fileName)
 	romList := findEntries(doc, fileName, fileSha)
 	matches := len(romList)
 	if matches > 0 {

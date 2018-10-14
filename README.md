@@ -49,5 +49,5 @@ Limitations
 -----------
 
 - Does not support compression formats other than zip
-- Does not renamed misnamed files in zip files 
+- Does not rename misnamed files in zip files 
 - Does not detect a set as complete if accross zip files

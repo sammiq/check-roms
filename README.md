@@ -31,21 +31,21 @@ Usage
     check-roms [OPTIONS] Files...
 
     Application Options:
-    -d, --datfile=              dat file to use as reference database
-    -e, --exclude=              extension to exclude from file list
-                                (can be specified multiple times)
-    -p, --print=[roms|sets|all] which information to print (default: all)
-    -r, --rename                rename unabiguous misnamed roms
-                                (only loose roms and zipped sets supported)
-    -s, --size                  check size on name only match
-                                (helps detect under/over-dumps)
-    -v, --verbose               show lots more information than is probably necessary
+    -d, --datfile=               dat file to use as reference database
+    -e, --exclude=               extension to exclude from file list
+                                 (can be specified multiple times)
+    -p, --print=[files|sets|all] which information to print (default: all)
+    -r, --rename                 rename unabiguous misnamed files
+                                 (only loose files and zipped sets supported)
+    -s, --size                   check size on name only match
+                                 (helps detect possible under/over-dumps)
+    -v, --verbose                show lots more information than is probably necessary
 
     Help Options:
-    -h, --help                  Show this help message
+    -h, --help                   Show this help message
 
     Arguments:
-    Files:                      list of files to check against dat file
+    Files:                       list of files to check against dat file
 
 Limitations
 -----------

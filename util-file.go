@@ -25,11 +25,3 @@ func shaHashFile(reader io.Reader) string {
 	errorExit(err)
 	return fmt.Sprintf("%x", hash.Sum(nil))
 }
-
-func shaHashFileAtPath(filePath string) string {
-	f, err := os.Open(filePath)
-	errorExit(err)
-	defer f.Close()
-
-	return shaHashFile(f)
-}

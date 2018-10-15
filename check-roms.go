@@ -2,62 +2,17 @@ package main
 
 import (
 	"archive/zip"
-	"crypto/sha1"
 	"encoding/xml"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/antchfx/xmlquery"
 	flags "github.com/jessevdk/go-flags"
 )
-
-func errorExit(err error) {
-	if err != nil {
-		log.Fatal("ERROR:", err)
-	}
-}
-
-func vLog(fmt string, v ...interface{}) {
-	if opts.Verbose {
-		log.Printf(fmt, v...)
-	}
-}
-
-func mapAttr(node *xmlquery.Node) map[string]string {
-	attrMap := make(map[string]string)
-	for _, attr := range node.Attr {
-		attrMap[attr.Name.Local] = attr.Value
-	}
-	return attrMap
-}
-
-func findAttr(node *xmlquery.Node, name string) string {
-	for _, attr := range node.Attr {
-		if attr.Name.Local == name {
-			return attr.Value
-		}
-	}
-	return ""
-}
-
-func shaHashFile(reader io.Reader) string {
-	hash := sha1.New()
-	_, err := io.Copy(hash, reader)
-	errorExit(err)
-	return fmt.Sprintf("%x", hash.Sum(nil))
-}
-
-func shaHashFileAtPath(filePath string) string {
-	f, err := os.Open(filePath)
-	errorExit(err)
-	defer f.Close()
-
-	return shaHashFile(f)
-}
 
 func matchEntriesBySha(doc *xmlquery.Node, sha string) []*xmlquery.Node {
 	list := xmlquery.Find(doc, fmt.Sprintf("/datafile/game/rom[@sha1='%s']", strings.ToLower(sha)))
@@ -68,66 +23,43 @@ func matchEntriesBySha(doc *xmlquery.Node, sha string) []*xmlquery.Node {
 	return list
 }
 
+func matchEntriesByName(doc *xmlquery.Node, name string) []*xmlquery.Node {
+	var b strings.Builder
+	err := xml.EscapeText(&b, []byte(name))
+	errorExit(err)
+	return xmlquery.Find(doc, fmt.Sprintf("/datafile/game/rom[@name='%s']", b.String()))
+}
+
 func findEntries(doc *xmlquery.Node, name string, sha string) []*xmlquery.Node {
 	list := matchEntriesBySha(doc, sha)
-	listLength := len(list)
-	if listLength == 0 {
-		vLog("MSG: No match for hash %s, checking name %s...\n", sha, name)
-		var b strings.Builder
-		err := xml.EscapeText(&b, []byte(name))
-		errorExit(err)
-		//no SHA1 match, return any matching filename
-		list = xmlquery.Find(doc, fmt.Sprintf("/datafile/game/rom[@name='%s']", b.String()))
+	vLog("MSG: Found %d entries matching hash %s, checking name %s...\n", len(list), sha, name)
+	if len(list) == 0 {
+		list = matchEntriesByName(doc, name)
 		vLog("MSG: Found %d entries matching name %s...\n", len(list), name)
 		return list
 	}
-	vLog("MSG: Found %d entries matching hash %s, checking name %s...\n", listLength, sha, name)
 	for _, node := range list {
-		romName := findAttr(node, "name")
-		if romName == name {
+		if findAttr(node, "name") == name {
 			vLog("MSG: Found exact match for hash %s and name %s\n", sha, name)
 			return []*xmlquery.Node{node}
 		}
 	}
-	vLog("MSG: Found %d entries matching hash %s, but found no match for name %s...\n", listLength, sha, name)
+	vLog("MSG: Found %d entries matching hash %s, but found no match for name %s...\n", len(list), sha, name)
 	return list
-}
-
-//NodeSet is an alias a map of nodes without values as a node set
-type NodeSet = map[*xmlquery.Node]struct{}
-
-func makeRomSet(gameNode *xmlquery.Node) NodeSet {
-	roms := make(NodeSet)
-	for other := gameNode.FirstChild; other != nil; other = other.NextSibling {
-		if other.Type == xmlquery.ElementNode && other.Data == "rom" {
-			roms[other] = struct{}{}
-		}
-	}
-	return roms
 }
 
 func updateGameMap(romNode *xmlquery.Node, gameMap map[*xmlquery.Node]NodeSet) {
 	gameNode := romNode.Parent
 	roms, ok := gameMap[gameNode]
 	if !ok {
-		roms = makeRomSet(gameNode)
+		roms = childNodeSet(gameNode, "rom")
 		gameMap[gameNode] = roms
 		vLog("MSG: Adding game %s with %d missing sets...\n", findAttr(gameNode, "name"), len(roms))
 	}
 	vLog("MSG: Removing rom %s %s from %s...\n",
-		strings.ToLower(findAttr(romNode, "sha1")), findAttr(romNode, "name"), findAttr(gameNode, "name"))
+		findAttr(romNode, "sha1"), findAttr(romNode, "name"), findAttr(gameNode, "name"))
 	delete(roms, romNode)
 	vLog("MSG: Game %s now has %d missing roms\n", findAttr(gameNode, "name"), len(roms))
-}
-
-func renameFile(filePath string, newName string) bool {
-	newPath := filepath.Join(filepath.Dir(filePath), newName)
-	err := os.Rename(filePath, newPath)
-	if err != nil {
-		log.Printf("ERROR: Unable to rename file : %s", err)
-		return false
-	}
-	return true
 }
 
 func matchFileToRom(filePath string, fileName string, fileSha string,
@@ -137,7 +69,21 @@ func matchFileToRom(filePath string, fileName string, fileSha string,
 	romName := romAttr["name"]
 	if romSha != fileSha {
 		if print {
-			fmt.Printf("[BAD ] %s %s - incorrect, should be %s\n", fileSha, fileName, romSha)
+			message := ""
+			if opts.Size {
+				romSize, err1 := strconv.ParseInt(romAttr["size"], 10, 64)
+				fileInfo, err2 := os.Stat(filePath)
+				if err1 == nil && err2 == nil && fileInfo.Size() != romSize {
+					if fileInfo.Size() > romSize {
+						message = fmt.Sprintf("(Possible overdump; size %s, expected %s)",
+							iecPrefix(uint64(fileInfo.Size())), iecPrefix(uint64(romSize)))
+					} else {
+						message = fmt.Sprintf("(Possible underdump; size %s, expected %s)",
+							iecPrefix(uint64(fileInfo.Size())), iecPrefix(uint64(romSize)))
+					}
+				}
+			}
+			fmt.Printf("[BAD ] %s %s - incorrect, expected %s %s\n", fileSha, fileName, romSha, message)
 		}
 		//if it's not the right rom, don't count it as a game
 		return false
@@ -184,7 +130,7 @@ func checkRom(doc *xmlquery.Node,
 }
 
 func checkLooseRom(doc *xmlquery.Node, filePath string, gameMap map[*xmlquery.Node]NodeSet) {
-	checkRom(doc, filePath, shaHashFileAtPath(filePath), gameMap, opts.Show != "sets", opts.Rename)
+	checkRom(doc, filePath, shaHashFileAtPath(filePath), gameMap, opts.Print != "sets", opts.Rename)
 }
 
 func matchFileToGame(filePath string, fileName string,
@@ -234,6 +180,12 @@ func checkRomSet(doc *xmlquery.Node, filePath string) {
 	defer reader.Close()
 
 	for _, f := range reader.File {
+		//skip anything that is not a regular file
+		if !f.Mode().IsRegular() {
+			vLog("MSG: %s is not a regular file, skipping", f.Name)
+			continue
+		}
+
 		r, err := f.Open()
 		if err != nil {
 			log.Printf("ERROR: %s could not be opened: %s\n", fileName, err)
@@ -248,7 +200,7 @@ func checkRomSet(doc *xmlquery.Node, filePath string) {
 		fmt.Printf("[ERR ] %s - contains no recognised roms\n", fileName)
 	} else {
 		for gameNode, roms := range gameMap {
-			matchFileToGame(filePath, fileName, gameNode, roms, opts.Show != "roms", opts.Rename && matches == 1)
+			matchFileToGame(filePath, fileName, gameNode, roms, opts.Print != "roms", opts.Rename && matches == 1)
 		}
 	}
 }
@@ -256,8 +208,9 @@ func checkRomSet(doc *xmlquery.Node, filePath string) {
 var opts struct {
 	Datfile    string              `short:"d" long:"datfile" description:"dat file to use as reference database" required:"true"`
 	Exclude    map[string]struct{} `short:"e" long:"exclude" description:"extension to exclude from file list (can be specified multiple times)"`
-	Show       string              `short:"s" long:"show" description:"which information to print" choice:"roms" choice:"sets" choice:"all" default:"all"`
+	Print      string              `short:"p" long:"print" description:"which information to print" choice:"roms" choice:"sets" choice:"all" default:"all"`
 	Rename     bool                `short:"r" long:"rename" description:"rename unabiguous misnamed roms (only loose roms and zipped sets supported)"`
+	Size       bool                `short:"s" long:"size" description:"check size on name only match (helps detect under/over-dumps)"`
 	Verbose    bool                `short:"v" long:"verbose" description:"show lots more information than is probably necessary"`
 	Positional struct {
 		Files []string `description:"list of files to check against dat file" required:"true"`
@@ -279,14 +232,28 @@ func main() {
 
 	gameMap := make(map[*xmlquery.Node]NodeSet)
 
-	if opts.Show == "all" {
+	if opts.Print == "all" {
 		fmt.Println("--ROM FILES--")
 	}
 	for _, filePath := range opts.Positional.Files {
-		fileExt := strings.TrimLeft(filepath.Ext(filePath), ".")
-		if _, ok := opts.Exclude[fileExt]; ok {
+		f, err := os.Stat(filePath)
+		if err != nil {
+			vLog("ERROR: Cannot check %s, skipping", filePath)
 			continue
 		}
+
+		fileExt := strings.TrimLeft(filepath.Ext(filePath), ".")
+		if _, ok := opts.Exclude[fileExt]; ok {
+			vLog("MSG: %s has excluded extension, skipping", filePath)
+			continue
+		}
+
+		//skip anything that is not a regular file
+		if !f.Mode().IsRegular() {
+			vLog("MSG: %s is not a regular file, skipping", filePath)
+			continue
+		}
+
 		if fileExt == "zip" {
 			checkRomSet(doc, filePath)
 		} else {
@@ -294,8 +261,8 @@ func main() {
 		}
 	}
 
-	if opts.Show != "roms" {
-		if opts.Show == "all" {
+	if opts.Print != "roms" {
+		if opts.Print == "all" {
 			fmt.Println("--GAME SETS--")
 		}
 		for gameNode, roms := range gameMap {

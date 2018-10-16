@@ -32,6 +32,8 @@ Usage
 
     Application Options:
     -d, --datfile=               dat file to use as reference database
+                                 (can be specified in a file named ".dat" in the
+                                 current directory instead for ease of use)
     -e, --exclude=               extension to exclude from file list
                                  (can be specified multiple times)
     -p, --print=[files|sets|all] which information to print (default: all)

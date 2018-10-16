@@ -2,7 +2,6 @@ package main
 
 import (
 	"archive/zip"
-	"encoding/xml"
 	"fmt"
 	"log"
 	"os"
@@ -33,10 +32,7 @@ func matchEntriesBySha(doc *xmlquery.Node, sha string) []*xmlquery.Node {
 }
 
 func matchEntriesByName(doc *xmlquery.Node, name string) []*xmlquery.Node {
-	var b strings.Builder
-	err := xml.EscapeText(&b, []byte(name))
-	errorExit(err)
-	return xmlquery.Find(doc, fmt.Sprintf("/datafile/game/rom[@name='%s']", b.String()))
+	return xmlquery.Find(doc, fmt.Sprintf("/datafile/game/rom[@name='%s']", xmlEscape(name)))
 }
 
 func findEntries(doc *xmlquery.Node, name string, sha string) ([]*xmlquery.Node, match) {
@@ -75,6 +71,23 @@ func updateGameMap(romNode *xmlquery.Node, gameMap map[*xmlquery.Node]NodeSet) {
 	vLog("MSG: Game %s now has %d missing roms\n", findAttr(gameNode, "name"), len(roms))
 }
 
+func printSizeMismatch(fileInfo os.FileInfo, romAttr map[string]string) string {
+	message := ""
+	if opts.Size {
+		fileSize := fileInfo.Size()
+		romSize, err1 := strconv.ParseInt(romAttr["size"], 10, 64)
+		if err1 == nil && fileSize != romSize {
+			fileSizeText := iecPrefix(uint64(fileInfo.Size()))
+			romSizeText := iecPrefix(uint64(romSize))
+			if fileSize > romSize {
+				message = fmt.Sprintf("(Possible overdump; size %s, expected %s)", fileSizeText, romSizeText)
+			} else {
+				message = fmt.Sprintf("(Possible underdump; size %s, expected %s)", fileSizeText, romSizeText)
+			}
+		}
+	}
+	return message
+}
 func printMatch(prefix string, fileInfo os.FileInfo, fileSha string, romNode *xmlquery.Node, matchType match) {
 	fileName := fileInfo.Name()
 	romAttr := mapAttr(romNode)
@@ -85,22 +98,9 @@ func printMatch(prefix string, fileInfo os.FileInfo, fileSha string, romNode *xm
 		fmt.Printf("[WARN] %s %s %s - misnamed, should be %s\n", prefix,
 			fileSha, fileName, romAttr["name"])
 	case matchName:
-		message := ""
-		if opts.Size {
-			fileSize := fileInfo.Size()
-			romSize, err1 := strconv.ParseInt(romAttr["size"], 10, 64)
-			if err1 == nil && fileSize != romSize {
-				if fileSize > romSize {
-					message = fmt.Sprintf("(Possible overdump; size %s, expected %s)",
-						iecPrefix(uint64(fileInfo.Size())), iecPrefix(uint64(romSize)))
-				} else {
-					message = fmt.Sprintf("(Possible underdump; size %s, expected %s)",
-						iecPrefix(uint64(fileInfo.Size())), iecPrefix(uint64(romSize)))
-				}
-			}
-		}
 		fmt.Printf("[BAD ] %s %s %s - incorrect, expected %s %s\n", prefix,
-			fileSha, fileName, strings.ToLower(romAttr["sha1"]), message)
+			fileSha, fileName, strings.ToLower(romAttr["sha1"]),
+			printSizeMismatch(fileInfo, romAttr))
 
 	}
 }
@@ -166,6 +166,9 @@ func matchFileToGame(filePath string, fileName string,
 			return true
 		}
 
+		if print {
+			fmt.Printf("[WARN]  %s - misnamed, should be %s\n", fileName, expectedName)
+		}
 		if rename {
 			if renameFile(filePath, expectedName) {
 				if print {
@@ -173,10 +176,6 @@ func matchFileToGame(filePath string, fileName string,
 				}
 				return true
 			}
-		}
-
-		if print {
-			fmt.Printf("[WARN]  %s - misnamed, should be %s\n", fileName, expectedName)
 		}
 	} else {
 		for romNode := range roms {
@@ -227,7 +226,7 @@ func checkRomSet(doc *xmlquery.Node, filePath string) {
 }
 
 var opts struct {
-	Datfile    string              `short:"d" long:"datfile" description:"dat file to use as reference database" required:"true"`
+	Datfile    string              `short:"d" long:"datfile" description:"dat file to use as reference database"`
 	Exclude    map[string]struct{} `short:"e" long:"exclude" description:"extension to exclude from file list (can be specified multiple times)"`
 	Print      string              `short:"p" long:"print" description:"which information to print" choice:"files" choice:"sets" choice:"all" default:"all"`
 	Rename     bool                `short:"r" long:"rename" description:"rename unabiguous misnamed files (only loose files and zipped sets supported)"`
@@ -241,6 +240,15 @@ var opts struct {
 func main() {
 	_, err := flags.Parse(&opts)
 	if err != nil {
+		os.Exit(1)
+	}
+
+	if opts.Datfile == "" {
+		opts.Datfile = readFirstLine("./.dat")
+	}
+
+	if opts.Datfile == "" {
+		fmt.Println("the required flag `-d, --datfile` was not specified")
 		os.Exit(1)
 	}
 

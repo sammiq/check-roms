@@ -1,6 +1,11 @@
 package main
 
-import "github.com/antchfx/xmlquery"
+import (
+	"encoding/xml"
+	"strings"
+
+	"github.com/antchfx/xmlquery"
+)
 
 //mapAttr returns the name and value of every attribute of a node
 func mapAttr(node *xmlquery.Node) map[string]string {
@@ -34,4 +39,11 @@ func childNodeSet(parentNode *xmlquery.Node, elementType string) NodeSet {
 		}
 	}
 	return roms
+}
+
+func xmlEscape(value string) string {
+	var b strings.Builder
+	err := xml.EscapeText(&b, []byte(value))
+	errorExit(err)
+	return b.String()
 }

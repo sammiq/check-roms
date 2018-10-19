@@ -23,12 +23,8 @@ const (
 )
 
 func matchEntriesBySha(doc *xmlquery.Node, sha string) []*xmlquery.Node {
-	list := xmlquery.Find(doc, fmt.Sprintf("/datafile/game/rom[@sha1='%s']", strings.ToLower(sha)))
-	if len(list) == 0 {
-		//some DAT files have SHA1 in UPPER CASE
-		list = xmlquery.Find(doc, fmt.Sprintf("/datafile/game/rom[@sha1='%s']", strings.ToUpper(sha)))
-	}
-	return list
+	return xmlquery.Find(doc, fmt.Sprintf("/datafile/game/rom[@sha1='%s' or @sha1='%s']",
+		strings.ToLower(sha), strings.ToUpper(sha)))
 }
 
 func matchEntriesByName(doc *xmlquery.Node, name string) []*xmlquery.Node {

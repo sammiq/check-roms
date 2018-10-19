@@ -55,3 +55,5 @@ Limitations
 - Does not support compression formats other than zip
 - Does not rename misnamed files inside zip files 
 - Does not detect a set as complete if across multiple zip files
+- Does not read elements other than `<rom>` inside `<game>` as I
+  am yet to find a dat file containing these 

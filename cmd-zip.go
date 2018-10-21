@@ -87,8 +87,6 @@ func (x *zipCommand) Execute(args []string) error {
 				}
 				header.SetMode(fileInfo.Mode())
 				fileWriter, err := zipper.CreateHeader(header)
-				header.CreatorVersion = header.CreatorVersion &^ 20
-				header.CreatorVersion |= 45
 				errorExit(err)
 				io.Copy(fileWriter, romFile)
 				fmt.Println("Done!")

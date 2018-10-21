@@ -28,26 +28,36 @@ You can then build the tool by:
 
 Usage
 -----
-    check-roms [OPTIONS] Files...
+    check-roms [OPTIONS] <check | lookup>
 
     Application Options:
-    -d, --datfile=               dat file to use as reference database
-                                 (can be specified in a file named ".dat" in the
-                                 current directory instead for ease of use)
-    -e, --exclude=               extension to exclude from file list
-                                 (can be specified multiple times)
-    -p, --print=[files|sets|all] which information to print (default: all)
-    -r, --rename                 rename unabiguous misnamed files
-                                 (only loose files and zipped sets supported)
-    -s, --size                   check size on name only match
-                                 (helps detect possible under/over-dumps)
-    -v, --verbose                show lots more information than is probably necessary
+    -d, --datfile=                dat file to use as reference database
+                                  (can be specified in a file named ".dat" in the
+                                  current directory instead for ease of use)
+    -v, --verbose                 show lots more information than is probably necessary
 
     Help Options:
-    -h, --help                   Show this help message
+    -h, --help                    Show this help message
 
-    Arguments:
-    Files:                       list of files to check against dat file
+    Available commands:
+    check                         Check files agains datfile
+    lookup                        Lookup a datfile rom entry
+
+    [check command options]
+    -e, --exclude=                extension to exclude from file list (can be specified multiple times)
+    -p, --print=[files|sets|all]  which information to print (default: all)
+    -r, --rename                  rename unabiguous misnamed files (only loose files and zipped sets supported)
+
+    [check command arguments]
+    Files:                        list of files to check against dat file
+
+    [lookup command options]
+    -k, --key=[crc|md5|name|sha1] key to use for lookup (ignored for game mode) (default: name)
+    -x, --exact                   use exact match (otherwise use substring match)
+    -m, --mode=[rom|game]         element to lookup (default: rom)
+
+    [lookup command arguments]
+    Keys:                         list of keys to lookup
 
 Limitations
 -----------

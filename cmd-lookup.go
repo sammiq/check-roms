@@ -1,0 +1,101 @@
+package main
+
+import (
+	"fmt"
+	"strconv"
+
+	"github.com/antchfx/xmlquery"
+)
+
+type lookupCommand struct {
+	LookupKey  string `short:"k" long:"key" description:"key to use for lookup (ignored for game mode)" choice:"crc" choice:"md5" choice:"name" choice:"sha1" default:"name"`
+	ExactMatch bool   `short:"x" long:"exact" description:"use exact match (otherwise use substring match)"`
+	LookupMode string `short:"m" long:"mode" description:"element to lookup" choice:"rom" choice:"game" default:"rom"`
+	Positional struct {
+		Keys []string `description:"list of keys to lookup" required:"true"`
+	} `positional-args:"true" required:"true"`
+}
+
+var lookup lookupCommand
+
+func (x *lookupCommand) Execute(args []string) error {
+	for i, key := range lookup.Positional.Keys {
+		if i > 0 {
+			fmt.Println("----")
+		}
+		var list []*xmlquery.Node
+		if lookup.LookupMode == "game" {
+			if lookup.ExactMatch {
+				list = matchGameEntriesByName(datfile, key)
+			} else {
+				list = findGameEntriesWithName(datfile, key)
+			}
+			printGameEntries(list)
+		} else {
+			if lookup.LookupKey == "name" {
+				if lookup.ExactMatch {
+					list = matchRomEntriesByName(datfile, key)
+				} else {
+					list = findRomEntriesWithName(datfile, key)
+				}
+				printRomEntries(list)
+			} else {
+				printRomEntries(matchRomEntriesByHexString(datfile, lookup.LookupKey, key))
+			}
+		}
+	}
+	return nil
+}
+
+func printRomEntries(list []*xmlquery.Node) {
+	for _, rom := range list {
+		printRomEntry(rom, 0)
+	}
+}
+
+func printRomEntry(rom *xmlquery.Node, indent int) {
+	printEntryAttributes(rom, indent)
+	indentPrintf(indent, "Contained in game:\n")
+	printGameEntry(rom.Parent, indent+1)
+}
+
+func printGameEntries(list []*xmlquery.Node) {
+	for _, game := range list {
+		printGameEntry(game, 0)
+	}
+}
+
+func printGameEntry(game *xmlquery.Node, indent int) {
+	printEntryAttributes(game, indent)
+	for el := game.FirstChild; el != nil; el = el.NextSibling {
+		if el.Type != xmlquery.ElementNode {
+			continue
+		}
+		indentPrintf(indent, "%s: %s\n", el.Data, el.InnerText())
+		printEntryAttributes(el, indent+1)
+	}
+}
+
+func printEntryAttributes(node *xmlquery.Node, indent int) {
+	attr := mapAttr(node)
+	if _, ok := attr["name"]; ok {
+		indentPrintf(indent, "name: %s\n", attr["name"])
+		delete(attr, "name")
+	}
+	for k, v := range attr {
+		if k == "size" {
+			val, err := strconv.ParseUint(v, 10, 64)
+			if err == nil {
+				v = iecPrefix(val)
+			}
+		}
+		indentPrintf(indent, "%s: %s\n", k, v)
+	}
+}
+
+func init() {
+	parser.AddCommand("lookup",
+		"Lookup a datfile rom entry",
+		"This command will search for a datfile rom entry that matches the given key (default is sha, use -m to change key type)",
+		&lookup)
+}

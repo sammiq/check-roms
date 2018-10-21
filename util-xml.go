@@ -1,9 +1,6 @@
 package main
 
 import (
-	"encoding/xml"
-	"strings"
-
 	"github.com/antchfx/xmlquery"
 )
 
@@ -39,11 +36,4 @@ func childNodeSet(parentNode *xmlquery.Node, elementType string) NodeSet {
 		}
 	}
 	return roms
-}
-
-func xmlEscape(value string) string {
-	var b strings.Builder
-	err := xml.EscapeText(&b, []byte(value))
-	errorExit(err)
-	return b.String()
 }

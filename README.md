@@ -28,7 +28,7 @@ You can then build the tool by:
 
 Usage
 -----
-    check-roms [OPTIONS] <check | lookup>
+    check-roms [OPTIONS] <check | lookup | zip>
 
     Application Options:
     -d, --datfile=                dat file to use as reference database
@@ -42,6 +42,7 @@ Usage
     Available commands:
     check                         Check files agains datfile
     lookup                        Lookup a datfile rom entry
+    zip                           Zip complete roms into sets
 
     [check command options]
     -e, --exclude=                extension to exclude from file list (can be specified multiple times)
@@ -59,6 +60,13 @@ Usage
     [lookup command arguments]
     Keys:                         list of keys to lookup
 
+    [zip command options]
+    -e, --exclude=                extension to exclude from file list (can be specified multiple times)
+
+    [zip command arguments]
+    Files:                        list of files to check and zip
+
+
 Limitations
 -----------
 
@@ -67,3 +75,5 @@ Limitations
 - Does not detect a set as complete if across multiple zip files
 - Does not read elements other than `<rom>` inside `<game>` as I
   am yet to find a dat file containing these 
+- 7-zip's implementation of zip handling may cause very large files to appear invalid when used with that tool.
+  They are not, 7-zip's interpretation of the ZIP64 spec differs from the reference implementation and most other tools.

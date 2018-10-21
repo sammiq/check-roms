@@ -23,30 +23,30 @@ type checkCommand struct {
 
 type gameRomMap = map[*xmlquery.Node]NodeSet
 
-var check checkCommand
+var checkCmd checkCommand
 
 func (x *checkCommand) Execute(args []string) error {
 	globalMap := make(gameRomMap)
 
-	if check.Print == "all" {
+	if checkCmd.Print == "all" {
 		fmt.Println("--FILES--")
 	}
-	for _, filePath := range check.Positional.Files {
+	for _, filePath := range checkCmd.Positional.Files {
 		fileInfo, err := os.Stat(filePath)
 		if err != nil {
-			vLog("ERROR: Cannot check %s, skipping", filePath)
+			vLog("ERROR: Cannot check %s, skipping\n", filePath)
 			continue
 		}
 
 		fileExt := strings.TrimLeft(filepath.Ext(filePath), ".")
-		if _, ok := check.Exclude[fileExt]; ok {
-			vLog("MSG: %s has excluded extension, skipping", filePath)
+		if _, ok := checkCmd.Exclude[fileExt]; ok {
+			vLog("MSG: %s has excluded extension, skipping\n", filePath)
 			continue
 		}
 
 		//skip anything that is not a regular file
 		if !fileInfo.Mode().IsRegular() {
-			vLog("MSG: %s is not a regular file, skipping", filePath)
+			vLog("MSG: %s is not a regular file, skipping\n", filePath)
 			continue
 		}
 
@@ -57,8 +57,8 @@ func (x *checkCommand) Execute(args []string) error {
 		}
 	}
 
-	if check.Print != "files" {
-		if check.Print == "all" {
+	if checkCmd.Print != "files" {
+		if checkCmd.Print == "all" {
 			fmt.Println("--SETS--")
 		}
 		for gameNode, roms := range globalMap {
@@ -138,6 +138,7 @@ func printSizeMismatch(fileInfo os.FileInfo, romAttr map[string]string) string {
 	}
 	return message
 }
+
 func printMatch(prefix string, fileInfo os.FileInfo, fileSha string, romNode *xmlquery.Node, matchType match) {
 	fileName := fileInfo.Name()
 	romAttr := mapAttr(romNode)
@@ -158,7 +159,7 @@ func printMatch(prefix string, fileInfo os.FileInfo, fileSha string, romNode *xm
 func checkRom(filePath string, fileInfo os.FileInfo, fileSha string,
 	gameMap gameRomMap, prefix string) string {
 	fileName := fileInfo.Name()
-	print := check.Print != "sets"
+	print := checkCmd.Print != "sets"
 	vLog("MSG: Checking %s %s...\n", fileSha, fileName)
 	romList, matchType := findEntries(datfile, fileName, fileSha)
 	matches := len(romList)
@@ -189,10 +190,10 @@ func checkLooseRom(filePath string, fileInfo os.FileInfo, gameMap gameRomMap) {
 	errorExit(err)
 	defer f.Close()
 
-	print := check.Print != "sets"
+	print := checkCmd.Print != "sets"
 	romName := checkRom(filePath, fileInfo, shaHashFile(f), gameMap, "")
 	fileName := fileInfo.Name()
-	if check.Rename && romName != "" && romName != fileName {
+	if checkCmd.Rename && romName != "" && romName != fileName {
 		if renameFile(filePath, romName) {
 			if print {
 				fmt.Printf("[ OK ] %s - renamed from %s\n", romName, fileName)
@@ -249,7 +250,7 @@ func checkRomSet(filePath string) {
 	for _, f := range reader.File {
 		//skip anything that is not a regular file
 		if !f.Mode().IsRegular() {
-			vLog("MSG: %s is not a regular file, skipping", f.Name)
+			vLog("MSG: %s is not a regular file, skipping\n", f.Name)
 			continue
 		}
 
@@ -267,7 +268,7 @@ func checkRomSet(filePath string) {
 		fmt.Printf("[ERR ]  %s - contains no recognised roms\n", fileName)
 	} else {
 		for gameNode, roms := range gameMap {
-			matchFileToGame(filePath, fileName, gameNode, roms, check.Print != "files", check.Rename && matches == 1)
+			matchFileToGame(filePath, fileName, gameNode, roms, checkCmd.Print != "files", checkCmd.Rename && matches == 1)
 		}
 	}
 }
@@ -276,5 +277,5 @@ func init() {
 	parser.AddCommand("check",
 		"Check files agains datfile",
 		"This command will check a files against a datfile and determine if all files for a game are present",
-		&check)
+		&checkCmd)
 }

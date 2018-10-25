@@ -54,14 +54,15 @@ Usage
 
     [lookup command options]
     -k, --key=[crc|md5|name|sha1] key to use for lookup (ignored for game mode) (default: name)
-    -x, --exact                   use exact match (otherwise use substring match)
     -m, --mode=[rom|game]         element to lookup (default: rom)
+    -x, --exact                   use exact match (otherwise use substring match)
 
     [lookup command arguments]
     Keys:                         list of keys to lookup
 
     [zip command options]
     -e, --exclude=                extension to exclude from file list (can be specified multiple times)
+    -i, --infozip  use info-zip command line tool instead of internal zip function
 
     [zip command arguments]
     Files:                        list of files to check and zip
@@ -73,7 +74,5 @@ Limitations
 - Does not support compression formats other than zip
 - Does not rename misnamed files inside zip files 
 - Does not detect a set as complete if across multiple zip files
-- Does not read elements other than `<rom>` inside `<game>` as I
-  am yet to find a dat file containing these 
-- 7-zip's implementation of zip handling may cause very large files to appear invalid when used with that tool.
-  They are not, 7-zip's interpretation of the ZIP64 spec differs from the reference implementation and most other tools.
+- Does not read elements other than `<rom>` inside `<game>` as I  am yet to find a dat file containing these 
+- 7-zip complains that large zipped files have errors when internal go zip functionality is used. No other tool has this problem.

@@ -9,8 +9,8 @@ import (
 
 type lookupCommand struct {
 	LookupKey  string `short:"k" long:"key" description:"key to use for lookup (ignored for game mode)" choice:"crc" choice:"md5" choice:"name" choice:"sha1" default:"name"`
-	ExactMatch bool   `short:"x" long:"exact" description:"use exact match (otherwise use substring match)"`
 	LookupMode string `short:"m" long:"mode" description:"element to lookup" choice:"rom" choice:"game" default:"rom"`
+	ExactMatch bool   `short:"x" long:"exact" description:"use exact match (otherwise use substring match)"`
 	Positional struct {
 		Keys []string `description:"list of keys to lookup" required:"true"`
 	} `positional-args:"true" required:"true"`

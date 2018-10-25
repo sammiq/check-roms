@@ -2,8 +2,10 @@ package main
 
 import (
 	"bufio"
+	"crypto/md5"
 	"crypto/sha1"
 	"fmt"
+	"hash/crc32"
 	"io"
 	"log"
 	"os"
@@ -26,6 +28,32 @@ func shaHashFile(reader io.Reader) string {
 	_, err := io.Copy(hash, reader)
 	errorExit(err)
 	return fmt.Sprintf("%x", hash.Sum(nil))
+}
+
+func md5HashFile(reader io.Reader) string {
+	hash := md5.New()
+	_, err := io.Copy(hash, reader)
+	errorExit(err)
+	return fmt.Sprintf("%x", hash.Sum(nil))
+}
+
+func crcHashFile(reader io.Reader) string {
+	hash := crc32.NewIEEE()
+	_, err := io.Copy(hash, reader)
+	errorExit(err)
+	return fmt.Sprintf("%x", hash.Sum(nil))
+}
+
+func hashFile(reader io.Reader) string {
+	switch checkCmd.Method {
+	case "sha1":
+		return shaHashFile(reader)
+	case "md5":
+		return md5HashFile(reader)
+	case "crc":
+		return crcHashFile(reader)
+	}
+	return ""
 }
 
 func readFirstLine(filePath string) string {

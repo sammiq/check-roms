@@ -14,6 +14,7 @@ import (
 
 type checkCommand struct {
 	Exclude    map[string]struct{} `short:"e" long:"exclude" description:"extension to exclude from file list (can be specified multiple times)"`
+	Method     string              `short:"m" long:"method" description:"method to use to match roms" choice:"sha1" choice:"md5" choice:"crc" default:"sha1"`
 	Print      string              `short:"p" long:"print" description:"which information to print" choice:"files" choice:"sets" choice:"all" default:"all"`
 	Rename     bool                `short:"r" long:"rename" description:"rename unambiguous misnamed files (only loose files and zipped sets supported)"`
 	Positional struct {
@@ -68,9 +69,9 @@ func (x *checkCommand) Execute(args []string) error {
 			} else {
 				for romNode := range roms {
 					romAttr := mapAttr(romNode)
-					romSha := strings.ToLower(romAttr["sha1"])
+					romHash := strings.ToLower(romAttr[checkCmd.Method])
 					romName := romAttr["name"]
-					fmt.Printf("[WARN]  %s is missing %s %s\n", gameName, romSha, romName)
+					fmt.Printf("[WARN]  %s is missing %s %s\n", gameName, romHash, romName)
 				}
 			}
 		}
@@ -87,13 +88,13 @@ const (
 	matchAll
 )
 
-func findEntries(doc *xmlquery.Node, name string, sha string) ([]*xmlquery.Node, match) {
-	list := matchRomEntriesBySha(doc, sha)
-	vLog("MSG: Found %d entries matching hash %s, checking name %s...\n", len(list), sha, name)
+func findEntries(doc *xmlquery.Node, name string, hash string) ([]*xmlquery.Node, match) {
+	list := matchRomEntriesByHexString(doc, checkCmd.Method, hash)
+	vLog("MSG: Found %d entries matching hash %s, checking name %s...\n", len(list), hash, name)
 	if len(list) == 0 {
 		list = matchRomEntriesByName(doc, name)
 		if len(list) == 0 {
-			vLog("MSG: Found no entries matching %s %s...\n", len(list), sha, name)
+			vLog("MSG: Found no entries matching %s %s...\n", len(list), hash, name)
 			return list, matchNone
 		}
 		vLog("MSG: Found %d entries matching name %s...\n", len(list), name)
@@ -101,11 +102,11 @@ func findEntries(doc *xmlquery.Node, name string, sha string) ([]*xmlquery.Node,
 	}
 	for _, node := range list {
 		if findAttr(node, "name") == name {
-			vLog("MSG: Found exact match for hash %s and name %s\n", sha, name)
+			vLog("MSG: Found exact match for hash %s and name %s\n", hash, name)
 			return []*xmlquery.Node{node}, matchAll
 		}
 	}
-	vLog("MSG: Found %d entries matching hash %s, but found no match for name %s...\n", len(list), sha, name)
+	vLog("MSG: Found %d entries matching hash %s, but found no match for name %s...\n", len(list), hash, name)
 	return list, matchHash
 }
 
@@ -118,7 +119,7 @@ func updateGameMap(romNode *xmlquery.Node, gameMap gameRomMap) {
 		vLog("MSG: Adding game %s with %d missing sets...\n", findAttr(gameNode, "name"), len(roms))
 	}
 	vLog("MSG: Removing rom %s %s from %s...\n",
-		findAttr(romNode, "sha1"), findAttr(romNode, "name"), findAttr(gameNode, "name"))
+		findAttr(romNode, checkCmd.Method), findAttr(romNode, "name"), findAttr(gameNode, "name"))
 	delete(roms, romNode)
 	vLog("MSG: Game %s now has %d missing roms\n", findAttr(gameNode, "name"), len(roms))
 }
@@ -139,35 +140,35 @@ func printSizeMismatch(fileInfo os.FileInfo, romAttr map[string]string) string {
 	return message
 }
 
-func printMatch(prefix string, fileInfo os.FileInfo, fileSha string, romNode *xmlquery.Node, matchType match) {
+func printMatch(prefix string, fileInfo os.FileInfo, fileHash string, romNode *xmlquery.Node, matchType match) {
 	fileName := fileInfo.Name()
 	romAttr := mapAttr(romNode)
 	switch matchType {
 	case matchAll:
-		fmt.Printf("[ OK ] %s %s %s\n", prefix, fileSha, fileName)
+		fmt.Printf("[ OK ] %s %s %s\n", prefix, fileHash, fileName)
 	case matchHash:
 		fmt.Printf("[WARN] %s %s %s - misnamed, should be %s\n", prefix,
-			fileSha, fileName, romAttr["name"])
+			fileHash, fileName, romAttr["name"])
 	case matchName:
 		fmt.Printf("[BAD ] %s %s %s - incorrect, expected %s %s\n", prefix,
-			fileSha, fileName, strings.ToLower(romAttr["sha1"]),
+			fileHash, fileName, strings.ToLower(romAttr[checkCmd.Method]),
 			printSizeMismatch(fileInfo, romAttr))
 
 	}
 }
 
-func checkRom(filePath string, fileInfo os.FileInfo, fileSha string,
+func checkRom(filePath string, fileInfo os.FileInfo, fileHash string,
 	gameMap gameRomMap, prefix string) string {
 	fileName := fileInfo.Name()
 	print := checkCmd.Print != "sets"
-	vLog("MSG: Checking %s %s...\n", fileSha, fileName)
-	romList, matchType := findEntries(datfile, fileName, fileSha)
+	vLog("MSG: Checking %s %s...\n", fileHash, fileName)
+	romList, matchType := findEntries(datfile, fileName, fileHash)
 	matches := len(romList)
 	if matches > 0 {
 		for _, romNode := range romList {
 			romName := findAttr(romNode, "name")
 			if print {
-				printMatch(prefix, fileInfo, fileSha, romNode, matchType)
+				printMatch(prefix, fileInfo, fileHash, romNode, matchType)
 			}
 			if matchType != matchName {
 				//consider this as part of the game set
@@ -179,7 +180,7 @@ func checkRom(filePath string, fileInfo os.FileInfo, fileSha string,
 			}
 		}
 	} else if print {
-		fmt.Printf("[MISS] %s %s %s\n", prefix, fileSha, fileName)
+		fmt.Printf("[MISS] %s %s %s\n", prefix, fileHash, fileName)
 	}
 	//not found or ambiguous
 	return ""
@@ -191,7 +192,7 @@ func checkLooseRom(filePath string, fileInfo os.FileInfo, gameMap gameRomMap) {
 	defer f.Close()
 
 	print := checkCmd.Print != "sets"
-	romName := checkRom(filePath, fileInfo, shaHashFile(f), gameMap, "")
+	romName := checkRom(filePath, fileInfo, hashFile(f), gameMap, "")
 	fileName := fileInfo.Name()
 	if checkCmd.Rename && romName != "" && romName != fileName {
 		if renameFile(filePath, romName) {
@@ -228,9 +229,9 @@ func matchFileToGame(filePath string, fileName string,
 	} else {
 		for romNode := range roms {
 			romAttr := mapAttr(romNode)
-			romSha := strings.ToLower(romAttr["sha1"])
+			fileHash := strings.ToLower(romAttr[checkCmd.Method])
 			romName := romAttr["name"]
-			fmt.Printf("[WARN]  %s - %s is missing %s %s\n", fileName, gameName, romSha, romName)
+			fmt.Printf("[WARN]  %s - %s is missing %s %s\n", fileName, gameName, fileHash, romName)
 		}
 	}
 	return false
@@ -260,7 +261,7 @@ func checkRomSet(filePath string) {
 			return
 		}
 		defer r.Close()
-		checkRom(f.Name, f.FileInfo(), shaHashFile(r), gameMap, " "+fileName+" -")
+		checkRom(f.Name, f.FileInfo(), hashFile(r), gameMap, " "+fileName+" -")
 	}
 
 	matches := len(gameMap)

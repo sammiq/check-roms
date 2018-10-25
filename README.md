@@ -46,6 +46,7 @@ Usage
 
     [check command options]
     -e, --exclude=                extension to exclude from file list (can be specified multiple times)
+    -m, --method=[sha1|md5|crc]   method to use to match roms (default: sha1)
     -p, --print=[files|sets|all]  which information to print (default: all)
     -r, --rename                  rename unambiguous misnamed files (only loose files and zipped sets supported)
 

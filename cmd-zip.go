@@ -15,6 +15,7 @@ import (
 type zipCommand struct {
 	Exclude    map[string]struct{} `short:"e" long:"exclude" description:"extension to exclude from file list (can be specified multiple times)"`
 	InfoZip    bool                `short:"i" long:"infozip" description:"use info-zip command line tool instead of internal zip function"`
+	OutputDir  string              `short:"o" long:"outdir" description:"directory in which to output zipped files" default:"."`
 	Positional struct {
 		Files []string `description:"list of files to check and zip" required:"true"`
 	} `positional-args:"true" required:"true"`
@@ -66,13 +67,16 @@ func (x *zipCommand) Execute(args []string) error {
 		roms := game.SelectElements("rom")
 		vLog("MSG: game %s needs %d file(s), found %d\n", gameName, len(roms), len(fileList))
 		if len(roms) == len(fileList) {
-			fmt.Printf("Creating %s with %d file(s)...\n", gameName+".zip", len(fileList))
+			zipFileName := gameName + ".zip"
+			zipPath := filepath.Join(zipCmd.OutputDir, zipFileName)
+			os.MkdirAll(zipCmd.OutputDir, 0755)
+			fmt.Printf("Creating %s with %d file(s)...\n", zipFileName, len(fileList))
 			if zipCmd.InfoZip {
-				externalZip(gameName+".zip", fileList)
+				externalZip(zipPath, fileList)
 			} else {
-				internalZip(gameName+".zip", fileList)
+				internalZip(zipPath, fileList)
 			}
-			fmt.Printf("Finished writing %s\n", gameName+".zip")
+			fmt.Printf("Finished writing %s\n", zipFileName)
 		}
 	}
 	return nil

@@ -15,7 +15,7 @@ import (
 type checkCommand struct {
 	Exclude    map[string]struct{} `short:"e" long:"exclude" description:"extension to exclude from file list (can be specified multiple times)"`
 	Print      string              `short:"p" long:"print" description:"which information to print" choice:"files" choice:"sets" choice:"all" default:"all"`
-	Rename     bool                `short:"r" long:"rename" description:"rename unabiguous misnamed files (only loose files and zipped sets supported)"`
+	Rename     bool                `short:"r" long:"rename" description:"rename unambiguous misnamed files (only loose files and zipped sets supported)"`
 	Positional struct {
 		Files []string `description:"list of files to check against dat file" required:"true"`
 	} `positional-args:"true" required:"true"`
@@ -265,7 +265,7 @@ func checkRomSet(filePath string) {
 
 	matches := len(gameMap)
 	if matches == 0 {
-		fmt.Printf("[ERR ]  %s - contains no recognised roms\n", fileName)
+		fmt.Printf("[ERR ]  %s - contains no recognized roms\n", fileName)
 	} else {
 		for gameNode, roms := range gameMap {
 			matchFileToGame(filePath, fileName, gameNode, roms, checkCmd.Print != "files", checkCmd.Rename && matches == 1)
@@ -275,7 +275,7 @@ func checkRomSet(filePath string) {
 
 func init() {
 	parser.AddCommand("check",
-		"Check files agains datfile",
+		"Check files against datfile",
 		"This command will check a files against a datfile and determine if all files for a game are present",
 		&checkCmd)
 }

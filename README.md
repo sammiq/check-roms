@@ -17,7 +17,7 @@ Installation
 
 You need a working [Go](https://golang.org/) installation (I used Go 1.10.1 on Ubuntu Linux 18.04)
 
-You will neet to install the required libraries:
+You will need to install the required libraries:
 
     go get github.com/antchfx/xmlquery
     go get github.com/jessevdk/go-flags
@@ -40,14 +40,14 @@ Usage
     -h, --help                    Show this help message
 
     Available commands:
-    check                         Check files agains datfile
+    check                         Check files against datfile
     lookup                        Lookup a datfile rom entry
     zip                           Zip complete roms into sets
 
     [check command options]
     -e, --exclude=                extension to exclude from file list (can be specified multiple times)
     -p, --print=[files|sets|all]  which information to print (default: all)
-    -r, --rename                  rename unabiguous misnamed files (only loose files and zipped sets supported)
+    -r, --rename                  rename unambiguous misnamed files (only loose files and zipped sets supported)
 
     [check command arguments]
     Files:                        list of files to check against dat file

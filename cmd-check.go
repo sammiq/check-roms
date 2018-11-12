@@ -15,11 +15,11 @@ import (
 type checkCommand struct {
 	Exclude    map[string]struct{} `short:"e" long:"exclude" description:"extension to exclude from file list (can be specified multiple times)"`
 	Method     string              `short:"m" long:"method" description:"method to use to match roms" choice:"sha1" choice:"md5" choice:"crc" default:"sha1"`
-	Print      string              `short:"p" long:"print" description:"which information to print" choice:"files" choice:"sets" choice:"all" default:"all"`
+	Print      string              `short:"p" long:"print" description:"which information to print" choice:"all" choice:"files" choice:"sets" default:"all"`
 	Rename     bool                `short:"r" long:"rename" description:"rename unambiguous misnamed files (only loose files and zipped sets supported)"`
 	Positional struct {
-		Files []string `description:"list of files to check against dat file" required:"true"`
-	} `positional-args:"true" required:"true"`
+		Files []string `description:"list of files to check against dat file"`
+	} `positional-args:"true"`
 }
 
 type gameRomMap = map[*xmlquery.Node]NodeSet
@@ -32,6 +32,13 @@ func (x *checkCommand) Execute(args []string) error {
 	if checkCmd.Print == "all" {
 		fmt.Println("--FILES--")
 	}
+
+	if len(checkCmd.Positional.Files) == 0 {
+		dirName, err := os.Getwd()
+		errorExit(err)
+		checkCmd.Positional.Files = filesInDirectory(dirName)
+	}
+
 	for _, filePath := range checkCmd.Positional.Files {
 		fileInfo, err := os.Stat(filePath)
 		if err != nil {

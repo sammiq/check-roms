@@ -47,14 +47,14 @@ Usage
     [check command options]
     -e, --exclude=                extension to exclude from file list (can be specified multiple times)
     -m, --method=[sha1|md5|crc]   method to use to match roms (default: sha1)
-    -p, --print=[files|sets|all]  which information to print (default: all)
+    -p, --print=[all|files|sets]  which information to print (default: all)
     -r, --rename                  rename unambiguous misnamed files (only loose files and zipped sets supported)
 
     [check command arguments]
-    Files:                        list of files to check against dat file
+    Files:                        list of files to check against dat file (default: *)
 
     [lookup command options]
-    -k, --key=[crc|md5|name|sha1] key to use for lookup (ignored for game mode) (default: name)
+    -k, --key=[name|crc|md5|sha1] key to use for lookup (ignored for game mode) (default: name)
     -m, --mode=[rom|game]         element to lookup (default: rom)
     -x, --exact                   use exact match (otherwise use substring match)
 

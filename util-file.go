@@ -78,3 +78,22 @@ func readFirstLine(filePath string) string {
 	}
 	return strings.Trim(string(line), " \t\v\f\r\x85\xa0")
 }
+
+func filesInDirectory(dirName string) []string {
+	dirFile, err := os.Open(dirName)
+	errorExit(err)
+
+	infos, err := dirFile.Readdir(0)
+	errorExit(err)
+
+	var fileNames []string
+	for _, info := range infos {
+		if !info.Mode().IsRegular() {
+			continue
+		}
+
+		fileNames = append(fileNames, filepath.Join(dirName, info.Name()))
+	}
+
+	return fileNames
+}

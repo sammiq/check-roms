@@ -18,7 +18,7 @@ type checkCommand struct {
 	Print      string              `short:"p" long:"print" description:"which information to print" choice:"all" choice:"files" choice:"sets" default:"all"`
 	Rename     bool                `short:"r" long:"rename" description:"rename unambiguous misnamed files (only loose files and zipped sets supported)"`
 	Positional struct {
-		Files []string `description:"list of files to check against dat file"`
+		Files []string `description:"list of files to check against dat file (default: *)"`
 	} `positional-args:"true"`
 }
 

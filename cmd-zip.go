@@ -16,15 +16,22 @@ type zipCommand struct {
 	Exclude    map[string]struct{} `short:"e" long:"exclude" description:"extension to exclude from file list (can be specified multiple times)"`
 	InfoZip    bool                `short:"i" long:"infozip" description:"use info-zip command line tool instead of internal zip function"`
 	OutputDir  string              `short:"o" long:"outdir" description:"directory in which to output zipped files" default:"."`
+	Remove     bool                `short:"m" long:"remove" description:"remove files after zipping"`
 	Positional struct {
-		Files []string `description:"list of files to check and zip" required:"true"`
-	} `positional-args:"true" required:"true"`
+		Files []string `description:"list of files to check and zip (default: *)"`
+	} `positional-args:"true"`
 }
 
 var zipCmd zipCommand
 
 func (x *zipCommand) Execute(args []string) error {
 	gameFiles := make(map[*xmlquery.Node][]string)
+
+	if len(checkCmd.Positional.Files) == 0 {
+		dirName, err := os.Getwd()
+		errorExit(err)
+		checkCmd.Positional.Files = filesInDirectory(dirName)
+	}
 
 	for _, filePath := range zipCmd.Positional.Files {
 		fileInfo, err := os.Stat(filePath)
@@ -75,6 +82,15 @@ func (x *zipCommand) Execute(args []string) error {
 				externalZip(zipPath, fileList)
 			} else {
 				internalZip(zipPath, fileList)
+			}
+			if zipCmd.Remove {
+				fmt.Println("Cleaning up...")
+				for _, file := range fileList {
+					vLog("MSG: removing file %s\n", file)
+					if err := os.Remove(file); err != nil {
+						vLog("MSG: unable to remove file %s - %s\n", file, err)
+					}
+				}
 			}
 			fmt.Printf("Finished writing %s\n", zipFileName)
 		}

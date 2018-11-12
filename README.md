@@ -65,9 +65,10 @@ Usage
     -e, --exclude=                extension to exclude from file list (can be specified multiple times)
     -i, --infozip                 use info-zip command line tool instead of internal zip function
     -o, --outdir=                 directory in which to output zipped files (default: .)
+    -m, --remove                  remove files after zipping
 
     [zip command arguments]
-    Files:                        list of files to check and zip
+    Files:                        list of files to check and zip (default: *)
 
 
 Limitations

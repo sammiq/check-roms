@@ -88,7 +88,13 @@ func filesInDirectory(dirName string) []string {
 
 	var fileNames []string
 	for _, info := range infos {
+		//ignore non-regular files
 		if !info.Mode().IsRegular() {
+			continue
+		}
+
+		//ignore dotfiles
+		if strings.HasPrefix(info.Name(), ".") {
 			continue
 		}
 

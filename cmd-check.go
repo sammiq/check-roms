@@ -165,7 +165,7 @@ func printMatch(prefix string, fileInfo os.FileInfo, fileHash string, romNode *x
 }
 
 func checkRom(filePath string, fileInfo os.FileInfo, fileHash string,
-	gameMap gameRomMap, prefix string) string {
+	gameMap gameRomMap, prefix string, renameFunc func(string, string) bool) {
 	fileName := fileInfo.Name()
 	print := checkCmd.Print != "sets"
 	vLog("MSG: Checking %s %s...\n", fileHash, fileName)
@@ -174,23 +174,27 @@ func checkRom(filePath string, fileInfo os.FileInfo, fileHash string,
 	if matches > 0 {
 		for _, romNode := range romList {
 			romName := findAttr(romNode, "name")
-			if print {
+			if checkCmd.Rename && matches == 1 && matchType == matchHash {
+				ok := renameFunc(filePath, romName)
+				if print {
+					if ok {
+						fmt.Printf("[ OK ] %s - renamed from %s\n", romName, fileName)
+					} else {
+						fmt.Printf("[WARN] %s %s %s - misnamed, should be %s (cannot rename)\n", prefix,
+							fileHash, fileName, romName)
+					}
+				}
+			} else if print {
 				printMatch(prefix, fileInfo, fileHash, romNode, matchType)
 			}
 			if matchType != matchName {
 				//consider this as part of the game set
 				updateGameMap(romNode, gameMap)
 			}
-			if matches == 1 {
-				//unambiguous name, so return it
-				return romName
-			}
 		}
 	} else if print {
 		fmt.Printf("[MISS] %s %s %s\n", prefix, fileHash, fileName)
 	}
-	//not found or ambiguous
-	return ""
 }
 
 func checkLooseRom(filePath string, fileInfo os.FileInfo, gameMap gameRomMap) {
@@ -198,16 +202,7 @@ func checkLooseRom(filePath string, fileInfo os.FileInfo, gameMap gameRomMap) {
 	errorExit(err)
 	defer f.Close()
 
-	print := checkCmd.Print != "sets"
-	romName := checkRom(filePath, fileInfo, hashFile(f), gameMap, "")
-	fileName := fileInfo.Name()
-	if checkCmd.Rename && romName != "" && romName != fileName {
-		if renameFile(filePath, romName) {
-			if print {
-				fmt.Printf("[ OK ] %s - renamed from %s\n", romName, fileName)
-			}
-		}
-	}
+	checkRom(filePath, fileInfo, hashFile(f), gameMap, "", renameFile)
 }
 
 func matchFileToGame(filePath string, fileName string,
@@ -222,16 +217,18 @@ func matchFileToGame(filePath string, fileName string,
 			return true
 		}
 
-		if print {
-			fmt.Printf("[WARN]  %s - misnamed, should be %s\n", fileName, expectedName)
-		}
 		if rename {
-			if renameFile(filePath, expectedName) {
-				if print {
+			ok := renameFile(filePath, expectedName)
+			if print {
+				if ok {
 					fmt.Printf("[ OK ]  %s - renamed from %s\n", expectedName, fileName)
+				} else {
+					fmt.Printf("[WARN]  %s - misnamed, should be %s (cannot rename)\n", fileName, expectedName)
 				}
-				return true
 			}
+			return true
+		} else if print {
+			fmt.Printf("[WARN]  %s - misnamed, should be %s\n", fileName, expectedName)
 		}
 	} else {
 		for romNode := range roms {
@@ -268,7 +265,7 @@ func checkRomSet(filePath string) {
 			return
 		}
 		defer r.Close()
-		checkRom(f.Name, f.FileInfo(), hashFile(r), gameMap, " "+fileName+" -")
+		checkRom(f.Name, f.FileInfo(), hashFile(r), gameMap, " "+fileName+" -", func(string, string) bool { return false })
 	}
 
 	matches := len(gameMap)

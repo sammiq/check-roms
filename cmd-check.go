@@ -46,7 +46,7 @@ func (x *checkCommand) Execute(args []string) error {
 			continue
 		}
 
-		fileExt := strings.TrimLeft(filepath.Ext(filePath), ".")
+		fileExt := strings.TrimPrefix(filepath.Ext(filePath), ".")
 		if _, ok := checkCmd.Exclude[fileExt]; ok {
 			vLog("MSG: %s has excluded extension, skipping\n", filePath)
 			continue

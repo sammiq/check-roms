@@ -40,7 +40,7 @@ func (x *zipCommand) Execute(args []string) error {
 			continue
 		}
 
-		fileExt := strings.TrimLeft(filepath.Ext(filePath), ".")
+		fileExt := strings.TrimPrefix(filepath.Ext(filePath), ".")
 		if _, ok := zipCmd.Exclude[fileExt]; ok {
 			vLog("MSG: %s has excluded extension, skipping\n", filePath)
 			continue

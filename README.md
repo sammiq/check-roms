@@ -15,14 +15,14 @@ Taking this opportunity to learn something new, I looked at languages other than
 Installation
 ------------
 
-You need a working [Go](https://golang.org/) installation (I used Go 1.10.1 on Ubuntu Linux 18.04)
+You need a working [Go](https://golang.org/) installation (I use Go 1.12 on Ubuntu Linux 18.04)
 
-You will need to install the required libraries:
+For Go < 1.11 the you will need to install the required libraries manually:
 
     go get github.com/antchfx/xmlquery
     go get github.com/jessevdk/go-flags
 
-You can then build the tool by:
+Build the tool with:
 
     go install
 

@@ -101,7 +101,7 @@ func findEntries(doc *xmlquery.Node, name string, hash string) ([]*xmlquery.Node
 	if len(list) == 0 {
 		list = matchRomEntriesByName(doc, name)
 		if len(list) == 0 {
-			vLog("MSG: Found no entries matching %s %s...\n", len(list), hash, name)
+			vLog("MSG: Found no entries matching %s %s...\n", hash, name)
 			return list, matchNone
 		}
 		vLog("MSG: Found %d entries matching name %s...\n", len(list), name)

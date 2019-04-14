@@ -27,10 +27,10 @@ var zipCmd zipCommand
 func (x *zipCommand) Execute(args []string) error {
 	gameFiles := make(map[*xmlquery.Node][]string)
 
-	if len(checkCmd.Positional.Files) == 0 {
+	if len(zipCmd.Positional.Files) == 0 {
 		dirName, err := os.Getwd()
 		errorExit(err)
-		checkCmd.Positional.Files = filesInDirectory(dirName)
+		zipCmd.Positional.Files = filesInDirectory(dirName)
 	}
 
 	for _, filePath := range zipCmd.Positional.Files {

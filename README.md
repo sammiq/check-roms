@@ -45,10 +45,13 @@ Usage
     zip                           Zip complete roms into sets
 
     [check command options]
-    -e, --exclude=                extension to exclude from file list (can be specified multiple times)
-    -m, --method=[sha1|md5|crc]   method to use to match roms (default: sha1)
-    -p, --print=[all|files|sets]  which information to print (default: all)
-    -r, --rename                  rename unambiguous misnamed files (only loose files and zipped sets supported)
+    -a, --allsets               report all sets that are missing
+    -e, --exclude=              extension to exclude from file list (can be
+                                specified multiple times)
+    -m, --method=[sha1|md5|crc] method to use to match roms (default: sha1)
+    -r, --rename                rename unambiguous misnamed files (only loose
+                                files and zipped sets supported)
+    -w, --workers=              number of concurrent workers to use (default:
 
     [check command arguments]
     Files:                        list of files to check against dat file (default: *)

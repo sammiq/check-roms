@@ -44,8 +44,8 @@ func crcHashFile(reader io.Reader) string {
 	return fmt.Sprintf("%x", hash.Sum(nil))
 }
 
-func hashFile(reader io.Reader) string {
-	switch checkCmd.Method {
+func hashFile(reader io.Reader, method string) string {
+	switch method {
 	case "sha1":
 		return shaHashFile(reader)
 	case "md5":
@@ -53,6 +53,7 @@ func hashFile(reader io.Reader) string {
 	case "crc":
 		return crcHashFile(reader)
 	}
+	log.Fatal("ERROR: unknown method")
 	return ""
 }
 

@@ -59,19 +59,19 @@ func processFile(filePath string) []*xmlquery.Node {
 	return checkFile(fileInfo, filePath)
 }
 
-func checkZip(filePath string) []*xmlquery.Node {
-	zipFileName := filepath.Base(filePath)
-	reader, err := zip.OpenReader(filePath)
+func checkZip(zipFilePath string) []*xmlquery.Node {
+	zipFileName := filepath.Base(zipFilePath)
+	reader, err := zip.OpenReader(zipFilePath)
 	if err != nil {
-		log.Printf("ERROR: %s could not be opened : %s\n", filePath, err)
+		log.Printf("ERROR: %s could not be opened : %s\n", zipFilePath, err)
 		return nil
 	}
 	defer reader.Close()
 
 	allMatches := make([]*xmlquery.Node, 0)
 	for _, f := range reader.File {
-		fileName := filepath.Base(filePath)
 		fileInfo := f.FileInfo()
+		fileName := f.Name
 		if !fileInfo.Mode().IsRegular() {
 			vLog("MSG: %s is not a regular file, skipping\n", fileName)
 			return nil
@@ -83,7 +83,25 @@ func checkZip(filePath string) []*xmlquery.Node {
 			return nil
 		}
 		defer r.Close()
-		allMatches = append(allMatches, findRomMatches(filePath, fileInfo, r, zipFileName, false)...)
+		allMatches = append(allMatches, findRomMatches(fileInfo, r, zipFileName, false, fileName)...)
+	}
+
+	if checkCmd.Rename {
+		foundName := ""
+		for _, match := range allMatches {
+			gameNode := match.Parent
+			gameName := findAttr(gameNode, "name")
+			if foundName == "" {
+				foundName = gameName
+			} else if foundName != gameName {
+				//there are multiple matches, so do not rename
+				return allMatches
+			}
+		}
+		ok := renameFile(zipFilePath, foundName)
+		if ok {
+			fmt.Printf("SET %s - renamed from %s\n", foundName, zipFileName)
+		}
 	}
 	return allMatches
 }
@@ -95,10 +113,10 @@ func checkFile(fileInfo os.FileInfo, filePath string) []*xmlquery.Node {
 		return nil
 	}
 	defer f.Close()
-	return findRomMatches(filePath, fileInfo, f, "", checkCmd.Rename)
+	return findRomMatches(fileInfo, f, "", checkCmd.Rename, filePath)
 }
 
-func findRomMatches(filePath string, fileInfo os.FileInfo, reader io.Reader, container string, rename bool) []*xmlquery.Node {
+func findRomMatches(fileInfo os.FileInfo, reader io.Reader, container string, rename bool, filePath string) []*xmlquery.Node {
 	fileName := fileInfo.Name()
 	fileHash := hashFile(reader, checkCmd.Method)
 	vLog("%s (%s)", fileName, fileHash)
@@ -113,7 +131,7 @@ func findRomMatches(filePath string, fileInfo os.FileInfo, reader io.Reader, con
 				romName := romAttr["name"]
 				ok := renameFile(filePath, romName)
 				if ok {
-					fmt.Printf("       %s %s %s - renamed from %s\n", fileHash, romName, container, fileName)
+					fmt.Printf("ROM %s - renamed from %s\n", romName, fileName)
 					matchType = matchName
 				}
 				break

@@ -94,13 +94,17 @@ func checkZip(zipFilePath string) []*xmlquery.Node {
 			if foundName == "" {
 				foundName = gameName
 			} else if foundName != gameName {
-				//there are multiple matches, so do not rename
+				//there are multiple matches, so do not try to rename
 				return allMatches
 			}
 		}
-		ok := renameFile(zipFilePath, foundName)
-		if ok {
-			fmt.Printf("SET %s - renamed from %s\n", foundName, zipFileName)
+
+		newFileName := foundName + ".zip"
+		if zipFileName != newFileName {
+			ok := renameFile(zipFilePath, newFileName)
+			if ok {
+				vLog("MSG: SET %s - renamed to %s from %s\n", foundName, newFileName, zipFileName)
+			}
 		}
 	}
 	return allMatches
@@ -119,22 +123,21 @@ func checkFile(fileInfo os.FileInfo, filePath string) []*xmlquery.Node {
 func findRomMatches(fileInfo os.FileInfo, reader io.Reader, container string, rename bool, filePath string) []*xmlquery.Node {
 	fileName := fileInfo.Name()
 	fileHash := hashFile(reader, checkCmd.Method)
-	vLog("%s (%s)", fileName, fileHash)
+	vLog("MSG: %s (%s)", fileName, fileHash)
 	romList, matchType := matchEntries(datfile, fileName, fileHash, checkCmd.Method)
 	if matchType == matchNone {
 		fmt.Printf("[UNK ] %s %s %s - unknown\n", fileHash, fileName, container)
 	} else {
-		//if there is a single match just by hash, then rename if allowed
 		for _, romNode := range romList {
+			//if there is a single match just by hash, then rename if allowed
 			romAttr := mapAttr(romNode)
 			if rename && matchType == matchHash && len(romList) == 1 {
 				romName := romAttr["name"]
 				ok := renameFile(filePath, romName)
 				if ok {
-					fmt.Printf("ROM %s - renamed from %s\n", romName, fileName)
-					matchType = matchName
+					vLog("MSG: ROM %s - renamed from %s\n", romName, fileName)
+					matchType = matchAll //it now matches all, so print as such
 				}
-				break
 			}
 			printMatch(container, fileInfo, fileHash, romAttr, matchType)
 		}
@@ -199,10 +202,15 @@ func updateGameMapFromGameNode(gameNode *xmlquery.Node, gameMap gameRomMap) *gam
 func updateGameMapFromRomNode(romNode *xmlquery.Node, gameMap gameRomMap) {
 	gameNode := romNode.Parent
 	info := updateGameMapFromGameNode(gameNode, gameMap)
-	vLog("MSG: Removing rom %s %s from %s...\n",
-		findAttr(romNode, checkCmd.Method), findAttr(romNode, "name"), findAttr(gameNode, "name"))
-	delete(info.MissingRoms, romNode)
-	vLog("MSG: Game %s now has %d missing roms\n", findAttr(gameNode, "name"), len(info.MissingRoms))
+	if _, ok := info.MissingRoms[romNode]; ok {
+		vLog("MSG: Removing rom %s %s from %s...\n",
+			findAttr(romNode, checkCmd.Method), findAttr(romNode, "name"), findAttr(gameNode, "name"))
+		delete(info.MissingRoms, romNode)
+		vLog("MSG: Game %s now has %d missing roms\n", findAttr(gameNode, "name"), len(info.MissingRoms))
+	} else {
+		vLog("MSG: Missing rom %s %s in %s, possible duplicate rom detected\n",
+			findAttr(romNode, checkCmd.Method), findAttr(romNode, "name"), findAttr(gameNode, "name"))
+	}
 }
 
 func worker(id int, ic <-chan string, oc chan<- []*xmlquery.Node) {

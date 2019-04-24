@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -18,6 +19,7 @@ type checkCommand struct {
 	Exclude     map[string]struct{} `short:"e" long:"exclude" description:"extension to exclude from file list (can be specified multiple times)"`
 	Method      string              `short:"m" long:"method" description:"method to use to match roms" choice:"sha1" choice:"md5" choice:"crc" default:"sha1"`
 	Rename      bool                `short:"r" long:"rename" description:"rename unambiguous misnamed files (only loose files and zipped sets supported)"`
+	SortSets    bool                `short:"s" long:"sort" description:"sort sets alphabetically rather than by datfile order"`
 	WorkerCount int                 `short:"w" long:"workers" description:"number of concurrent workers to use" default:"10"`
 	Positional  struct {
 		Files []string `description:"list of files to check against dat file (default: *)"`
@@ -27,13 +29,15 @@ type checkCommand struct {
 var checkCmd checkCommand
 
 type gameInfo struct {
+	GameName    string
 	AllRoms     NodeSet
 	MissingRoms NodeSet
 }
 
 type gameRomMap = map[*xmlquery.Node]*gameInfo
+type nodeList = []*xmlquery.Node
 
-func processFile(filePath string) []*xmlquery.Node {
+func processFile(filePath string) nodeList {
 	vLog("Processing %s", filePath)
 	fileInfo, err := os.Stat(filePath)
 	if err != nil {
@@ -59,7 +63,7 @@ func processFile(filePath string) []*xmlquery.Node {
 	return checkFile(fileInfo, filePath)
 }
 
-func checkZip(zipFilePath string) []*xmlquery.Node {
+func checkZip(zipFilePath string) nodeList {
 	zipFileName := filepath.Base(zipFilePath)
 	reader, err := zip.OpenReader(zipFilePath)
 	if err != nil {
@@ -68,7 +72,7 @@ func checkZip(zipFilePath string) []*xmlquery.Node {
 	}
 	defer reader.Close()
 
-	allMatches := make([]*xmlquery.Node, 0)
+	allMatches := make(nodeList, 0)
 	for _, f := range reader.File {
 		fileInfo := f.FileInfo()
 		fileName := f.Name
@@ -110,7 +114,7 @@ func checkZip(zipFilePath string) []*xmlquery.Node {
 	return allMatches
 }
 
-func checkFile(fileInfo os.FileInfo, filePath string) []*xmlquery.Node {
+func checkFile(fileInfo os.FileInfo, filePath string) nodeList {
 	f, err := os.Open(filePath)
 	if err != nil {
 		log.Printf("ERROR: %s could not be opened : %s\n", filePath, err)
@@ -120,7 +124,7 @@ func checkFile(fileInfo os.FileInfo, filePath string) []*xmlquery.Node {
 	return findRomMatches(fileInfo, f, "", checkCmd.Rename, filePath)
 }
 
-func findRomMatches(fileInfo os.FileInfo, reader io.Reader, container string, rename bool, filePath string) []*xmlquery.Node {
+func findRomMatches(fileInfo os.FileInfo, reader io.Reader, container string, rename bool, filePath string) nodeList {
 	fileName := fileInfo.Name()
 	fileHash := hashFile(reader, checkCmd.Method)
 	vLog("MSG: %s (%s)", fileName, fileHash)
@@ -183,25 +187,27 @@ func printSizeMismatch(fileInfo os.FileInfo, sizeText string) string {
 	return message
 }
 
-func updateGameMapFromGameNode(gameNode *xmlquery.Node, gameMap gameRomMap) *gameInfo {
+func updateGameMapFromGameNode(gameNode *xmlquery.Node, gameMap gameRomMap, gameList *[]*gameInfo) *gameInfo {
 	info, ok := gameMap[gameNode]
 	if !ok {
+		gameName := findAttr(gameNode, "name")
 		allRoms := childNodeSet(gameNode, "rom")
 		//delete is in-place so do not use same reference, copy instead
 		missingRoms := make(NodeSet)
 		for key, value := range allRoms {
 			missingRoms[key] = value
 		}
-		info = &gameInfo{allRoms, missingRoms}
+		info = &gameInfo{gameName, allRoms, missingRoms}
 		gameMap[gameNode] = info
+		*gameList = append(*gameList, info)
 		vLog("MSG: Adding game %s with %d roms...\n", findAttr(gameNode, "name"), len(allRoms))
 	}
 	return info
 }
 
-func updateGameMapFromRomNode(romNode *xmlquery.Node, gameMap gameRomMap) {
+func updateGameMapFromRomNode(romNode *xmlquery.Node, gameMap gameRomMap, gameList *[]*gameInfo) {
 	gameNode := romNode.Parent
-	info := updateGameMapFromGameNode(gameNode, gameMap)
+	info := updateGameMapFromGameNode(gameNode, gameMap, gameList)
 	if _, ok := info.MissingRoms[romNode]; ok {
 		vLog("MSG: Removing rom %s %s from %s...\n",
 			findAttr(romNode, checkCmd.Method), findAttr(romNode, "name"), findAttr(gameNode, "name"))
@@ -213,7 +219,7 @@ func updateGameMapFromRomNode(romNode *xmlquery.Node, gameMap gameRomMap) {
 	}
 }
 
-func worker(id int, ic <-chan string, oc chan<- []*xmlquery.Node) {
+func worker(id int, ic <-chan string, oc chan<- nodeList) {
 	vLog("Worker %d Starting", id)
 	for input := range ic {
 		vLog("Worker %d Processing: %s", id, input)
@@ -224,10 +230,11 @@ func worker(id int, ic <-chan string, oc chan<- []*xmlquery.Node) {
 
 func (x *checkCommand) Execute(args []string) error {
 	gameMap := make(gameRomMap)
+	gameList := make([]*gameInfo, 0)
 	if checkCmd.AllSets {
 		//add everything from the datfile to the gameRomMap
 		for _, game := range findGameEntries(datfile) {
-			updateGameMapFromGameNode(game, gameMap)
+			updateGameMapFromGameNode(game, gameMap, &gameList)
 		}
 	}
 
@@ -241,8 +248,8 @@ func (x *checkCommand) Execute(args []string) error {
 	numWorkers := checkCmd.WorkerCount
 
 	//init worker channels
-	inputs := make(chan string, length)                //need enough to feed each file into a worker
-	outputs := make(chan []*xmlquery.Node, numWorkers) //need enough to feed a result out of each worker
+	inputs := make(chan string, length)        //need enough to feed each file into a worker
+	outputs := make(chan nodeList, numWorkers) //need enough to feed a result out of each worker
 
 	vLog("Initializing %d workers", numWorkers)
 	for w := 1; w <= numWorkers; w++ {
@@ -255,7 +262,7 @@ func (x *checkCommand) Execute(args []string) error {
 	}
 
 	//gather results
-	results := make([][]*xmlquery.Node, length)
+	results := make([]nodeList, length)
 	for a := 0; a < length; a++ {
 		results[a] = <-outputs
 	}
@@ -265,20 +272,22 @@ func (x *checkCommand) Execute(args []string) error {
 
 	for _, romList := range results {
 		for _, romNode := range romList {
-			updateGameMapFromRomNode(romNode, gameMap)
+			updateGameMapFromRomNode(romNode, gameMap, &gameList)
 		}
 	}
 
 	fmt.Println("--SETS--")
-	for gameNode, info := range gameMap {
-		gameName := findAttr(gameNode, "name")
+	if checkCmd.SortSets {
+		sort.Slice(gameList, func(i, j int) bool { return gameList[i].GameName < gameList[j].GameName })
+	}
+	for _, info := range gameList {
 		numMissing := len(info.MissingRoms)
 		if numMissing == 0 {
-			fmt.Printf("[ OK ]  %s\n", gameName)
+			fmt.Printf("[ OK ]  %s\n", info.GameName)
 		} else if len(info.AllRoms) == numMissing {
-			fmt.Printf("[MISS]  %s\n", gameName)
+			fmt.Printf("[MISS]  %s\n", info.GameName)
 		} else {
-			fmt.Printf("[WARN]  %s is missing:\n", gameName)
+			fmt.Printf("[WARN]  %s is missing:\n", info.GameName)
 			for romNode := range info.MissingRoms {
 				romAttr := mapAttr(romNode)
 				romHash := strings.ToLower(romAttr[checkCmd.Method])

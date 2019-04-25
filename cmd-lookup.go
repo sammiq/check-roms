@@ -55,7 +55,7 @@ func printRomEntries(list []*xmlquery.Node) {
 
 func printRomEntry(rom *xmlquery.Node, indent int) {
 	printEntryAttributes(rom, indent)
-	indentPrintf(indent, "Contained in game:\n")
+	outputIndent(indent, "Contained in game:")
 	printGameEntry(rom.Parent, indent+1)
 }
 
@@ -71,7 +71,7 @@ func printGameEntry(game *xmlquery.Node, indent int) {
 		if el.Type != xmlquery.ElementNode {
 			continue
 		}
-		indentPrintf(indent, "%s: %s\n", el.Data, el.InnerText())
+		outputIndent(indent, "%s: %s", el.Data, el.InnerText())
 		printEntryAttributes(el, indent+1)
 	}
 }
@@ -79,7 +79,7 @@ func printGameEntry(game *xmlquery.Node, indent int) {
 func printEntryAttributes(node *xmlquery.Node, indent int) {
 	attr := mapAttr(node)
 	if _, ok := attr["name"]; ok {
-		indentPrintf(indent, "name: %s\n", attr["name"])
+		outputIndent(indent, "name: %s", attr["name"])
 		delete(attr, "name")
 	}
 	for k, v := range attr {
@@ -89,7 +89,7 @@ func printEntryAttributes(node *xmlquery.Node, indent int) {
 				v = iecPrefix(val)
 			}
 		}
-		indentPrintf(indent, "%s: %s\n", k, v)
+		outputIndent(indent, "%s: %s", k, v)
 	}
 }
 

@@ -28,57 +28,54 @@ Build the tool with:
 
 Usage
 -----
-    check-roms [OPTIONS] <check | lookup | zip>
-
+    Usage:
+      check-roms [OPTIONS] <check | lookup | zip>
+    
     Application Options:
-    -d, --datfile=                dat file to use as reference database
-                                  (can be specified in a file named ".dat" in the
-                                  current directory instead for ease of use)
-    -v, --verbose                 show lots more information than is probably necessary
-
+      -d, --datfile=                      dat file to use as reference database
+      -l, --level=[error|warn|info|debug] level for information to show (default: error)
+    
     Help Options:
-    -h, --help                    Show this help message
-
+      -h, --help                          Show this help message
+    
     Available commands:
-    check                         Check files against datfile
-    lookup                        Lookup a datfile rom entry
-    zip                           Zip complete roms into sets
+      check                               Check files against datfile
+      lookup                              Lookup a datfile rom entry
+      zip                                 Zip complete roms into sets
 
     [check command options]
-    -a, --allsets               report all sets that are missing
-    -e, --exclude=              extension to exclude from file list (can be
-                                specified multiple times)
-    -m, --method=[sha1|md5|crc] method to use to match roms (default: sha1)
-    -r, --rename                rename unambiguous misnamed files (only loose
-                                files and zipped sets supported)
-    -w, --workers=              number of concurrent workers to use (default:
+      -a, --allsets                       report all sets that are missing
+      -e, --exclude=                      extension to exclude from file list (can be
+                                          specified multiple times)
+      -m, --method=[sha1|md5|crc]         method to use to match roms (default: sha1)
+      -r, --rename                        rename unambiguous misnamed files (only loose
+                                          files and zipped sets supported)
+      -w, --workers=                      number of concurrent workers to use (default:
 
     [check command arguments]
-    Files:                        list of files to check against dat file (default: *)
+      Files:                              list of files to check against dat file (default: *)
 
     [lookup command options]
-    -k, --key=[name|crc|md5|sha1] key to use for lookup (ignored for game mode) (default: name)
-    -m, --mode=[rom|game]         element to lookup (default: rom)
-    -x, --exact                   use exact match (otherwise use substring match)
-
+      -k, --key=[name|crc|md5|sha1]       key to use for lookup (ignored for game mode) (default: name)
+      -m, --mode=[rom|game]               element to lookup (default: rom)
+      -x, --exact                         use exact match (otherwise use substring match)
+      
     [lookup command arguments]
-    Keys:                         list of keys to lookup
+      Keys:                               list of keys to lookup
 
     [zip command options]
-    -e, --exclude=                extension to exclude from file list (can be specified multiple times)
-    -i, --infozip                 use info-zip command line tool instead of internal zip function
-    -o, --outdir=                 directory in which to output zipped files (default: .)
-    -m, --remove                  remove files after zipping
+      -e, --exclude=                      extension to exclude from file list (can be specified multiple times)
+      -i, --infozip                       use info-zip command line tool instead of internal zip function
+      -o, --outdir=                       directory in which to output zipped files (default: .)
+      -m, --remove                        remove files after zipping
 
     [zip command arguments]
-    Files:                        list of files to check and zip (default: *)
-
+      Files:                              list of files to check and zip (default: *)
 
 Limitations
 -----------
 
-- Does not support compression formats other than zip
-- Does not rename misnamed files inside zip files 
-- Does not detect a set as complete if across multiple zip files
-- Does not read elements other than `<rom>` inside `<game>` as I  am yet to find a dat file containing these 
+- Does not support compression formats other than zip.
+- Does not rename misnamed files inside zip files.
+- Does not read elements other than `<rom>` inside `<game>` as I  am yet to find a dat file containing these.
 - 7-zip complains that large zipped files have errors when internal go zip functionality is used. No other tool has this problem.

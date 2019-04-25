@@ -36,19 +36,19 @@ func (x *zipCommand) Execute(args []string) error {
 	for _, filePath := range zipCmd.Positional.Files {
 		fileInfo, err := os.Stat(filePath)
 		if err != nil {
-			vLog("ERROR: Cannot check %s, skipping\n", filePath)
+			message(levelError, "Cannot check %s, skipping. Reason: %s", filePath, err)
 			continue
 		}
 
 		fileExt := strings.TrimPrefix(filepath.Ext(filePath), ".")
 		if _, ok := zipCmd.Exclude[fileExt]; ok {
-			vLog("MSG: %s has excluded extension, skipping\n", filePath)
+			message(levelInfo, "%s has excluded extension, skipping.", filePath)
 			continue
 		}
 
 		//skip anything that is not a regular file
 		if !fileInfo.Mode().IsRegular() {
-			vLog("MSG: %s is not a regular file, skipping\n", filePath)
+			message(levelWarn, "%s is not a regular file, skipping.", filePath)
 			continue
 		}
 
@@ -57,7 +57,7 @@ func (x *zipCommand) Execute(args []string) error {
 		defer fin.Close()
 
 		matches := matchRomEntriesBySha(datfile, shaHashFile(fin))
-		vLog("MSG: found %d matches for %s\n", len(matches), filePath)
+		message(levelDebug, "found %d matches for %s", len(matches), filePath)
 		for _, match := range matches {
 			if match.SelectAttr("name") == filepath.Base(filePath) {
 				list, ok := gameFiles[match.Parent]
@@ -72,12 +72,12 @@ func (x *zipCommand) Execute(args []string) error {
 	for game, fileList := range gameFiles {
 		gameName := game.SelectAttr("name")
 		roms := game.SelectElements("rom")
-		vLog("MSG: game %s needs %d file(s), found %d\n", gameName, len(roms), len(fileList))
+		message(levelInfo, "Game %s needs %d file(s), found %d", gameName, len(roms), len(fileList))
 		if len(roms) == len(fileList) {
 			zipFileName := gameName + ".zip"
 			zipPath := filepath.Join(zipCmd.OutputDir, zipFileName)
 			os.MkdirAll(zipCmd.OutputDir, 0755)
-			fmt.Printf("Creating %s with %d file(s)...\n", zipFileName, len(fileList))
+			output("Creating %s with %d file(s)...", zipFileName, len(fileList))
 			if zipCmd.InfoZip {
 				externalZip(zipPath, fileList)
 			} else {
@@ -86,13 +86,13 @@ func (x *zipCommand) Execute(args []string) error {
 			if zipCmd.Remove {
 				fmt.Println("Cleaning up...")
 				for _, file := range fileList {
-					vLog("MSG: removing file %s\n", file)
+					message(levelInfo, "Removing file %s", file)
 					if err := os.Remove(file); err != nil {
-						vLog("MSG: unable to remove file %s - %s\n", file, err)
+						message(levelError, "Unable to remove file %s. Reason: %s", file, err)
 					}
 				}
 			}
-			fmt.Printf("Finished writing %s\n", zipFileName)
+			output("Finished writing %s", zipFileName)
 		}
 	}
 	return nil
@@ -115,7 +115,7 @@ func internalZip(zipFileName string, fileList []string) {
 
 	for _, filePath := range fileList {
 		fileName := filepath.Base(filePath)
-		fmt.Printf("Writing %s to %s...", fileName, zipFileName)
+		output("Writing %s to %s...", fileName, zipFileName)
 		romFile, err := os.Open(filePath)
 		errorExit(err)
 		defer romFile.Close()
@@ -132,7 +132,7 @@ func internalZip(zipFileName string, fileList []string) {
 		fileWriter, err := zipper.CreateHeader(header)
 		errorExit(err)
 		io.Copy(fileWriter, romFile)
-		fmt.Println("Done!")
+		output("Done!")
 	}
 
 	err = zipper.Close()

@@ -3,18 +3,11 @@ package main
 import (
 	"fmt"
 	"log"
-	"strings"
 )
 
 func errorExit(err error) {
 	if err != nil {
 		log.Fatal("ERROR:", err)
-	}
-}
-
-func vLog(fmt string, v ...interface{}) {
-	if opts.Verbose {
-		log.Printf(fmt, v...)
 	}
 }
 
@@ -33,9 +26,4 @@ func iecPrefix(value uint64) string {
 	return binaryPrefix(value,
 		[]string{"B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB"}, "Yi",
 		1024.0)
-}
-
-func indentPrintf(indent int, format string, a ...interface{}) {
-	fmt.Print(strings.Repeat("\t", indent))
-	fmt.Printf(format, a...)
 }

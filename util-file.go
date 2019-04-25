@@ -17,7 +17,7 @@ func renameFile(filePath string, newName string) bool {
 	newPath := filepath.Join(filepath.Dir(filePath), newName)
 	err := os.Rename(filePath, newPath)
 	if err != nil {
-		log.Printf("ERROR: Unable to rename file : %s", err)
+		message(levelError, "Unable to rename file %s to %s. Reason: %s", filePath, newName, err)
 		return false
 	}
 	return true
@@ -53,14 +53,14 @@ func hashFile(reader io.Reader, method string) string {
 	case "crc":
 		return crcHashFile(reader)
 	}
-	log.Fatal("ERROR: unknown method")
+	log.Fatal("ERROR: unknown hash method")
 	return ""
 }
 
 func readFirstLine(filePath string) string {
 	f, err := os.Open(filePath)
 	if err != nil {
-		vLog("MSG: Cannot open %s %s", filePath, err)
+		message(levelInfo, "Cannot open %s %s", filePath, err)
 		return ""
 	}
 	defer f.Close()
@@ -70,7 +70,8 @@ func readFirstLine(filePath string) string {
 	for prefix := true; prefix; {
 		read, prefix, err := r.ReadLine()
 		if err != nil && err != io.EOF {
-			vLog("MSG: Error while reading %s %s", filePath, err)
+			message(levelError, "Error while reading %s. Reason: %s", filePath, err)
+			return ""
 		}
 		line = append(line, read...)
 		if !prefix {

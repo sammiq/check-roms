@@ -62,28 +62,32 @@ const (
 func matchEntries(doc *xmlquery.Node, name string, hash string, hashMethod string) ([]*xmlquery.Node, match) {
 	list := matchRomEntriesByHexString(doc, hashMethod, hash)
 	listLength := len(list)
-	vLog("MSG: Found %d entries matching hash %s, checking name %s...\n", listLength, hash, name)
+	message(levelDebug, "Found %d entries matching hash %s, checking name %s...", listLength, hash, name)
 	if listLength == 0 {
 		list = matchRomEntriesByName(doc, name)
 		if listLength == 0 {
-			vLog("MSG: Found no entries matching %s %s...\n", hash, name)
+			message(levelInfo, "Found no entries matching %s %s...", hash, name)
 			return list, matchNone
 		}
-		vLog("MSG: Found %d entries matching name %s...\n", listLength, name)
+		message(levelInfo, "Found %d entries matching name %s...", listLength, name)
 		return list, matchName
 	}
 
+	message(levelDebug, "Looking for name match %s for hash %s...", name, hash)
 	matched := make([]*xmlquery.Node, 0, listLength)
 	for _, node := range list {
-		if findAttr(node, "name") == name {
+		foundName := findAttr(node, "name")
+		message(levelDebug, "Matched name %s for hash %s", foundName, hash)
+		if foundName == name {
 			matched = append(matched, node)
 		}
 	}
 
 	if len(matched) == 0 {
-		vLog("MSG: Found %d entries matching hash %s, but found no match for name %s...\n", listLength, hash, name)
+		message(levelInfo, "Found %d entries matching hash %s, but found no match for name %s...", listLength, hash, name)
 		return list, matchHash
 	}
-	vLog("MSG: Found %d entries matching hash %s and name %s\n", len(matched), hash, name)
+
+	message(levelInfo, "Found %d entries matching hash %s and name %s", len(matched), hash, name)
 	return matched, matchAll
 }

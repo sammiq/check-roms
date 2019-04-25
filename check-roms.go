@@ -10,7 +10,7 @@ import (
 
 type options struct {
 	Datfile string `short:"d" long:"datfile" description:"dat file to use as reference database"`
-	Verbose bool   `short:"v" long:"verbose" description:"show lots more information than is probably necessary"`
+	Level   string `short:"l" long:"level" description:"level for information to show" choice:"error" choice:"warn" choice:"info" choice:"debug" default:"error"`
 }
 
 var opts options
@@ -21,6 +21,8 @@ var parser = flags.NewParser(&opts, flags.Default)
 func main() {
 	parser.CommandHandler = func(cmd flags.Commander, args []string) error {
 		if cmd != nil {
+			setOutputLevel()
+
 			datfile = checkDatFileAndOpen()
 			return cmd.Execute(args)
 		}
@@ -45,4 +47,16 @@ func checkDatFileAndOpen() *xmlquery.Node {
 	}
 
 	return parseDatFile(opts.Datfile)
+}
+
+func setOutputLevel() {
+	outputLevel = levelError
+	switch opts.Level {
+	case "warn":
+		outputLevel = levelWarn
+	case "info":
+		outputLevel = levelInfo
+	case "debug":
+		outputLevel = levelDebug
+	}
 }

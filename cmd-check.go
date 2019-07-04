@@ -17,9 +17,11 @@ type checkCommand struct {
 	AllSets     bool                `short:"a" long:"allsets" description:"report all sets that are missing"`
 	Exclude     map[string]struct{} `short:"e" long:"exclude" description:"extension to exclude from file list (can be specified multiple times)"`
 	Method      string              `short:"m" long:"method" description:"method to use to match roms" choice:"sha1" choice:"md5" choice:"crc" default:"sha1"`
+	Quiet       bool                `short:"q" long:"quiet" description:"do not print rom information for matches"`
 	Rename      bool                `short:"r" long:"rename" description:"rename unambiguous misnamed files (only loose files and zipped sets supported)"`
 	SortSets    bool                `short:"s" long:"sort" description:"sort sets alphabetically rather than by datfile order"`
 	WorkerCount int                 `short:"w" long:"workers" description:"number of concurrent workers to use" default:"10"`
+	ViewSets    string              `short:"v" long:"view" description:"which items to view" choice:"all" choice:"complete" choice:"missing" choice:"partial" default:"all"`
 	Positional  struct {
 		Files []string `description:"list of files to check against dat file (default: *)"`
 	} `positional-args:"true"`
@@ -143,7 +145,7 @@ func findRomMatches(fileInfo os.FileInfo, reader io.Reader, container string, re
 			if rename && matchType == matchHash && len(romList) == 1 {
 				romName := romAttr["name"]
 				ok := renameFile(filePath, romName)
-				if ok {
+				if ok && !checkCmd.Quiet {
 					message(levelInfo, "ROM %s - renamed from %s", romName, fileName)
 					matchType = matchAll //it now matches all, so print as such
 				}
@@ -161,12 +163,16 @@ func printMatch(container string, fileInfo os.FileInfo, fileHash string, romAttr
 	fileName := fileInfo.Name()
 	switch matchType {
 	case matchAll:
-		output("[ OK ] %s %s %s",
-			fileHash, fileName, container)
+		if !checkCmd.Quiet {
+			output("[ OK ] %s %s %s",
+				fileHash, fileName, container)
+		}
 	case matchHash:
-		output("[WARN] %s %s %s - misnamed, should be %s",
-			fileHash, fileName, container,
-			romAttr["name"])
+		if !checkCmd.Quiet {
+			output("[WARN] %s %s %s - misnamed, should be %s",
+				fileHash, fileName, container,
+				romAttr["name"])
+		}
 	case matchName:
 		output("[BAD ] %s %s %s - incorrect, expected %s %s",
 			fileHash, fileName, container,
@@ -284,16 +290,22 @@ func (x *checkCommand) Execute(args []string) error {
 	for _, info := range gameList {
 		numMissing := len(info.MissingRoms)
 		if numMissing == 0 {
-			output("[ OK ]  %s", info.GameName)
+			if checkCmd.ViewSets == "all" || checkCmd.ViewSets == "complete" {
+				output("[ OK ]  %s", info.GameName)
+			}
 		} else if len(info.AllRoms) == numMissing {
-			output("[MISS]  %s", info.GameName)
+			if checkCmd.ViewSets == "all" || checkCmd.ViewSets == "missing" {
+				output("[MISS]  %s", info.GameName)
+			}
 		} else {
-			output("[WARN]  %s is missing:", info.GameName)
-			for romNode := range info.MissingRoms {
-				romAttr := mapAttr(romNode)
-				romHash := strings.ToLower(romAttr[checkCmd.Method])
-				romName := romAttr["name"]
-				output("        %s %s", romHash, romName)
+			if checkCmd.ViewSets == "all" || checkCmd.ViewSets == "partial" {
+				output("[WARN]  %s is missing:", info.GameName)
+				for romNode := range info.MissingRoms {
+					romAttr := mapAttr(romNode)
+					romHash := strings.ToLower(romAttr[checkCmd.Method])
+					romName := romAttr["name"]
+					output("        %s %s", romHash, romName)
+				}
 			}
 		}
 	}

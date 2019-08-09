@@ -17,9 +17,11 @@ type checkCommand struct {
 	AllSets     bool                `short:"a" long:"allsets" description:"report all sets that are missing"`
 	Exclude     map[string]struct{} `short:"e" long:"exclude" description:"extension to exclude from file list (can be specified multiple times)"`
 	Method      string              `short:"m" long:"method" description:"method to use to match roms" choice:"sha1" choice:"md5" choice:"crc" default:"sha1"`
+	OutputFile  string              `short:"o" long:"output" description:"file for output"`
 	Quiet       bool                `short:"q" long:"quiet" description:"do not print rom information for matches"`
 	Rename      bool                `short:"r" long:"rename" description:"rename unambiguous misnamed files (only loose files and zipped sets supported)"`
-	SortSets    bool                `short:"s" long:"sort" description:"sort sets alphabetically rather than by datfile order"`
+	SortFiles   bool                `short:"f" long:"sort-files" description:"sort files alphabetically rather than by raw order"`
+	SortSets    bool                `short:"s" long:"sort-sets" description:"sort sets alphabetically rather than by datfile order"`
 	WorkerCount int                 `short:"w" long:"workers" description:"number of concurrent workers to use" default:"10"`
 	ViewSets    string              `short:"v" long:"view" description:"which items to view" choice:"all" choice:"complete" choice:"missing" choice:"partial" default:"all"`
 	Positional  struct {
@@ -137,7 +139,7 @@ func findRomMatches(fileInfo os.FileInfo, reader io.Reader, container string, re
 
 	romList, matchType := matchEntries(datfile, fileName, fileHash, checkCmd.Method)
 	if matchType == matchNone {
-		output("[UNK ] %s %s %s - unknown", fileHash, fileName, container)
+		output("[MISS] %s %s %s - unknown, no match", fileHash, fileName, container)
 	} else {
 		for _, romNode := range romList {
 			//if there is a single match just by hash, then rename if allowed
@@ -240,6 +242,14 @@ func worker(id int, ic <-chan string, oc chan<- nodeList) {
 }
 
 func (x *checkCommand) Execute(args []string) error {
+	if checkCmd.OutputFile != "" {
+		f, err := os.Create(checkCmd.OutputFile)
+		if err != nil {
+			message(levelError, "%s could not be created : %s", checkCmd.OutputFile, err)
+			return err
+		}
+		outputFile = f
+	}
 	gameMap := make(gameRomMap)
 	gameList := make([]*gameInfo, 0)
 	if checkCmd.AllSets {
@@ -254,6 +264,9 @@ func (x *checkCommand) Execute(args []string) error {
 		errorExit(err)
 		checkCmd.Positional.Files = filesInDirectory(dirName)
 	}
+	if checkCmd.SortFiles {
+		sort.Strings(checkCmd.Positional.Files)
+	}
 	length := len(checkCmd.Positional.Files)
 
 	numWorkers := checkCmd.WorkerCount
@@ -267,7 +280,11 @@ func (x *checkCommand) Execute(args []string) error {
 		go worker(w, inputs, outputs)
 	}
 
-	output("--FILES--")
+	if checkCmd.Quiet {
+		output("--INCORRECT FILES--")
+	} else {
+		output("--FILES--")
+	}
 	for _, filePath := range checkCmd.Positional.Files {
 		inputs <- filePath
 	}
@@ -287,17 +304,24 @@ func (x *checkCommand) Execute(args []string) error {
 	if checkCmd.SortSets {
 		sort.Slice(gameList, func(i, j int) bool { return gameList[i].GameName < gameList[j].GameName })
 	}
+
+	completeSets := 0
+	missingSets := 0
+	partialSets := 0
 	for _, info := range gameList {
 		numMissing := len(info.MissingRoms)
 		if numMissing == 0 {
+			completeSets++
 			if checkCmd.ViewSets == "all" || checkCmd.ViewSets == "complete" {
 				output("[ OK ]  %s", info.GameName)
 			}
 		} else if len(info.AllRoms) == numMissing {
+			missingSets++
 			if checkCmd.ViewSets == "all" || checkCmd.ViewSets == "missing" {
 				output("[MISS]  %s", info.GameName)
 			}
 		} else {
+			partialSets++
 			if checkCmd.ViewSets == "all" || checkCmd.ViewSets == "partial" {
 				output("[WARN]  %s is missing:", info.GameName)
 				for romNode := range info.MissingRoms {
@@ -309,6 +333,10 @@ func (x *checkCommand) Execute(args []string) error {
 			}
 		}
 	}
+	output("--SET STATISTICS--")
+	output("\tComplete: %d", completeSets)
+	output("\tPartial: %d", partialSets)
+	output("\tMissing: %d", missingSets)
 
 	return nil
 }
@@ -316,6 +344,6 @@ func (x *checkCommand) Execute(args []string) error {
 func init() {
 	parser.AddCommand("check",
 		"Check files against datfile",
-		"This command will check a files against a datfile and determine if all files for a game are present",
+		"This command will check files against a datfile and determine if all files for a game are present",
 		&checkCmd)
 }

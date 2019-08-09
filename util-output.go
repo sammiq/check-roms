@@ -16,6 +16,7 @@ const (
 )
 
 var outputLevel = levelError
+var outputFile = os.Stdout
 
 func (level msgLevel) String() string {
 	switch level {
@@ -32,15 +33,15 @@ func (level msgLevel) String() string {
 }
 
 func output(format string, args ...interface{}) {
-	fmt.Printf(format+"\n", args...)
+	fmt.Fprintf(outputFile, format+"\n", args...)
 }
 
 func outputIndent(indent int, format string, args ...interface{}) {
 	if indent == 0 {
 		output(format, args...)
 	} else {
-		fmt.Print(strings.Repeat("\t", indent))
-		fmt.Printf(format+"\n", args...)
+		fmt.Fprintf(outputFile, strings.Repeat("\t", indent))
+		fmt.Fprintf(outputFile, format+"\n", args...)
 	}
 }
 

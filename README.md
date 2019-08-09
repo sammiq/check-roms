@@ -29,7 +29,7 @@ Build the tool with:
 Usage
 -----
     Usage:
-      check-roms [OPTIONS] <check | lookup | zip>
+      check-roms [OPTIONS] <audit | check | lookup | zip>
     
     Application Options:
       -d, --datfile=                      dat file to use as reference database
@@ -39,9 +39,24 @@ Usage
       -h, --help                          Show this help message
     
     Available commands:
+      audit                               Audit files against datfile
       check                               Check files against datfile
       lookup                              Lookup a datfile rom entry
       zip                                 Zip complete roms into sets
+
+    [audit command options]
+      -e, --exclude=                      extension to exclude from file list (can
+                                          be specified multiple times)
+      -m, --method=[sha1|md5|crc]         method to use to match roms (default:
+                                          sha1)
+      -r, --rename                        rename unambiguous misnamed files (only
+                                          loose files and zipped sets supported)
+      -w, --workers=                      number of concurrent workers to use
+                                          (default: 10)
+
+    [audit command arguments]
+      OutputFile:                         audit file for output (default:
+                                          audit_<timestamp>.txt)
 
     [check command options]
       -a, --allsets                       report all sets that are missing

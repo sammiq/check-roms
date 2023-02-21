@@ -38,3 +38,5 @@
 ### Visual Studio Code ###
 /.vscode
 
+### IntelliJ IDEA ###
+/.idea
